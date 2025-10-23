@@ -14,8 +14,8 @@ export abstract class BaseScraper {
   protected companyCode: string;
   protected companyName: string;
   protected timeout: number = 60000; // 60 saniye
-  protected retries: number = 2; // 2 deneme
-  protected retryDelay: number = 3000; // 3 saniye bekleme
+  protected retries: number = 1; // 2 deneme (0, 1) - OTP için azaltıldı
+  protected retryDelay: number = 5000; // 5 saniye bekleme
   protected headless: boolean = true;
 
   constructor(

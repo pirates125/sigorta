@@ -300,46 +300,15 @@ export class SompoClient {
         const currentUrl = this.page!.url();
         console.log("  " + (i + 1) + "s:", currentUrl);
 
-        // OTP ekranı var mı kontrol et
-        const hasOTP = await this.page!.evaluate(() => {
-          return !!(
-            document.querySelector('input[placeholder*="OTP"]') ||
-            document.querySelector('input[placeholder*="kod"]') ||
-            document.querySelector('input[placeholder*="Kod"]') ||
-            document.querySelector('[class*="otp"]') ||
-            document.querySelector('[id*="otp"]') ||
-            document.querySelector('input[type="text"][maxlength="6"]') ||
-            document.querySelector('input[type="text"][maxlength="4"]')
-          );
-        });
-
-        if (hasOTP) {
-          console.log("🔐 OTP ekranı tespit edildi! OTP bekleniyor...");
-          await this.screenshot("otp-screen-detected");
-
-          // OTP'yi bekle (30 saniye)
-          console.log("⏳ OTP girişi bekleniyor (30 saniye)...");
-          for (let j = 0; j < 30; j++) {
-            await new Promise((resolve) => setTimeout(resolve, 1000));
-            const url = this.page!.url();
-
-            // Dashboard'a yönlendirildi mi kontrol et
-            if (url.includes("/dashboard") && !url.includes("/login")) {
-              console.log("✅ OTP doğrulandı! Dashboard'a yönlendirildi.");
-              this.isLoggedIn = true;
-              await this.screenshot("otp-success");
-              return true;
-            }
-
-            // Hala OTP ekranındaysa devam et
-            if (j % 5 === 0 && j > 0) {
-              console.log(`  ⏳ OTP bekleniyor... ${j}/30 saniye`);
-            }
-          }
-
-          // 30 saniye sonunda hala OTP ekranındaysa
-          console.log("⚠️ OTP 30 saniyede girilmedi, devam ediliyor...");
-          break;
+        // Dashboard'a yönlendirildi mi kontrol et
+        if (
+          currentUrl.includes("/dashboard") &&
+          !currentUrl.includes("/login")
+        ) {
+          console.log("✅ Dashboard'a yönlendirildi! Giriş başarılı.");
+          this.isLoggedIn = true;
+          await this.screenshot("login-success");
+          return true;
         }
 
         if (!currentUrl.includes("/login")) {
@@ -353,9 +322,50 @@ export class SompoClient {
 
       console.log("✅ Sayfa yüklendi");
 
-      // OTP kontrolü
+      // OTP kontrolü - login sonrası
       const currentUrl = this.page!.url();
       console.log("📍 Yönlendirilen URL:", currentUrl);
+
+      // OTP ekranı var mı kontrol et
+      const hasOTP = await this.page!.evaluate(() => {
+        return !!(
+          document.querySelector('input[placeholder*="OTP"]') ||
+          document.querySelector('input[placeholder*="kod"]') ||
+          document.querySelector('input[placeholder*="Kod"]') ||
+          document.querySelector('[class*="otp"]') ||
+          document.querySelector('[id*="otp"]') ||
+          document.querySelector('input[type="text"][maxlength="6"]') ||
+          document.querySelector('input[type="text"][maxlength="4"]')
+        );
+      });
+
+      if (hasOTP) {
+        console.log("🔐 OTP ekranı tespit edildi! OTP bekleniyor...");
+        await this.screenshot("otp-screen-detected");
+
+        // OTP'yi bekle (30 saniye)
+        console.log("⏳ OTP girişi bekleniyor (30 saniye)...");
+        for (let j = 0; j < 30; j++) {
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          const url = this.page!.url();
+
+          // Dashboard'a yönlendirildi mi kontrol et
+          if (url.includes("/dashboard") && !url.includes("/login")) {
+            console.log("✅ OTP doğrulandı! Dashboard'a yönlendirildi.");
+            this.isLoggedIn = true;
+            await this.screenshot("otp-success");
+            return true;
+          }
+
+          // Hala OTP ekranındaysa devam et
+          if (j % 5 === 0 && j > 0) {
+            console.log(`  ⏳ OTP bekleniyor... ${j}/30 saniye`);
+          }
+        }
+
+        // 30 saniye sonunda hala OTP ekranındaysa
+        console.log("⚠️ OTP 30 saniyede girilmedi, devam ediliyor...");
+      }
 
       // Eğer hala login sayfasındaysa, hata var
       if (currentUrl.includes("/login")) {
