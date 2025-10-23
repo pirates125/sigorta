@@ -48,6 +48,36 @@ export async function getTrafficQuoteNewFlow(
     const currentUrl = currentPage.url();
     console.log("📍 Başlangıç URL:", currentUrl);
 
+    // OTP sayfasındaysa dashboard'a geçmeyi bekle
+    if (currentUrl.includes("google-authenticator-validation")) {
+      console.log("🔐 OTP sayfasındayız, dashboard'a geçmeyi bekliyoruz...");
+      await takeScreenshot("otp-waiting");
+
+      // Dashboard'a geçmeyi bekle (30 saniye)
+      for (let i = 0; i < 30; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        const url = currentPage.url();
+
+        if (
+          url.includes("/dashboard") &&
+          !url.includes("google-authenticator-validation")
+        ) {
+          console.log("✅ Dashboard'a geçildi!");
+          break;
+        }
+
+        if (i % 5 === 0 && i > 0) {
+          console.log(`  ⏳ Dashboard bekleniyor... ${i}/30 saniye`);
+        }
+      }
+
+      // Hala OTP sayfasındaysa hata ver
+      const finalUrl = currentPage.url();
+      if (finalUrl.includes("google-authenticator-validation")) {
+        throw new Error("OTP sayfasından dashboard'a geçilemedi");
+      }
+    }
+
     await takeScreenshot("01-start");
 
     // Popup'ları kontrol et ve kapat

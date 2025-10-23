@@ -349,8 +349,12 @@ export class SompoClient {
           await new Promise((resolve) => setTimeout(resolve, 1000));
           const url = this.page!.url();
 
-          // Dashboard'a yönlendirildi mi kontrol et
-          if (url.includes("/dashboard") && !url.includes("/login")) {
+          // Dashboard'a yönlendirildi mi kontrol et (OTP sayfası değil)
+          if (
+            url.includes("/dashboard") &&
+            !url.includes("/login") &&
+            !url.includes("google-authenticator-validation")
+          ) {
             console.log("✅ OTP doğrulandı! Dashboard'a yönlendirildi.");
             this.isLoggedIn = true;
             await this.screenshot("otp-success");
