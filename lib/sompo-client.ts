@@ -50,6 +50,10 @@ export class SompoClient {
     );
 
     await this.page.setViewport({ width: 1920, height: 1080 });
+    
+    // Timeout'ları artır (15s → 30s)
+    this.page.setDefaultNavigationTimeout(30000);
+    this.page.setDefaultTimeout(30000);
   }
 
   /**
@@ -102,7 +106,7 @@ export class SompoClient {
       // Dashboard'a git
       await this.page!.goto("https://ejento.somposigorta.com.tr/dashboard/", {
         waitUntil: "networkidle2",
-        timeout: 15000,
+        timeout: 30000,
       });
 
       // Login kontrolü
@@ -143,7 +147,7 @@ export class SompoClient {
 
       // Kullanıcı adı - gerçek selector
       const usernameSelector = 'input[placeholder="Kullanıcı Adı"]';
-      await this.page!.waitForSelector(usernameSelector, { timeout: 10000 });
+      await this.page!.waitForSelector(usernameSelector, { timeout: 15000 });
       await this.page!.type(usernameSelector, this.config.username, {
         delay: 100,
       });
@@ -193,35 +197,41 @@ export class SompoClient {
 
       // Bot algılaması kontrolü - eğer /bot'a giderse, "Ana Sayfayı Yükle" butonuna tıkla
       const finalUrl = this.page!.url();
-      if (finalUrl.includes("/bot")) {
+      if (finalUrl.includes("/bot") || finalUrl.includes("security") || finalUrl.includes("validation")) {
         console.log(
-          "⚠️  Bot algılaması aktif! 'Ana Sayfayı Yükle' butonuna tıklanıyor..."
+          "🔐 Bot/Güvenlik kontrolü aktif! 'Ana Sayfayı Yükle' butonuna tıklanıyor..."
         );
         await this.screenshot("bot-detection-before");
 
         try {
-          // "Ana Sayfayı Yükle" textini içeren elementi ara
+          // "Ana Sayfayı Yükle" veya "ANA SAYFAYI YÜKLE" textini içeren elementi ara
           const buttonFound = await this.page!.evaluate(() => {
-            // Tüm elementleri tara
-            const allElements = document.querySelectorAll("*");
-            for (const element of allElements) {
-              const text = element.textContent?.trim() || "";
+            // Tüm buton ve link elementleri tara
+            const buttons = document.querySelectorAll('button, a, [role="button"], [onclick]');
+            
+            for (const button of buttons) {
+              const text = button.textContent?.trim().toUpperCase() || "";
+              const innerText = (button as HTMLElement).innerText?.trim().toUpperCase() || "";
+              
+              // "ANA SAYFAYI YÜKLE", "Ana Sayfayı Yükle", "ANA SAYFAYA DÖN" vb.
               if (
-                text.includes("Ana Sayfayı Yükle") ||
-                text === "Ana Sayfayı Yükle"
+                text.includes("ANA SAYFAYI YÜKLE") ||
+                text.includes("ANA SAYFAYA") ||
+                innerText.includes("ANA SAYFAYI YÜKLE") ||
+                innerText.includes("ANA SAYFAYA")
               ) {
-                // Tıklanabilir bir element mi kontrol et
-                if (
-                  element.tagName === "BUTTON" ||
-                  element.tagName === "A" ||
-                  (element as any).onclick ||
-                  (element as HTMLElement).style.cursor === "pointer"
-                ) {
-                  (element as HTMLElement).click();
-                  return true;
-                }
+                console.log("🎯 Buton bulundu:", text || innerText);
+                (button as HTMLElement).click();
+                return true;
               }
             }
+            
+            // Eğer bulunamazsa, tüm butonları logla
+            console.log("📋 Sayfadaki tüm butonlar:");
+            buttons.forEach((btn, idx) => {
+              console.log(`${idx + 1}. ${btn.textContent?.trim()}`);
+            });
+            
             return false;
           });
 
@@ -230,11 +240,12 @@ export class SompoClient {
             // Yönlendirmeyi bekle
             await this.page!.waitForNavigation({
               waitUntil: "networkidle2",
-              timeout: 10000,
-            }).catch(() => {
+              timeout: 30000,
+            }).catch((navError) => {
               // Navigation timeout olursa devam et
-              console.log("Navigation timeout, devam ediliyor...");
+              console.log("⚠️ Navigation timeout:", navError.message);
             });
+            
             await this.screenshot("bot-detection-after-click");
           } else {
             console.log("⚠️  'Ana Sayfayı Yükle' butonu bulunamadı!");
@@ -253,11 +264,11 @@ export class SompoClient {
           }
 
           // Tekrar URL kontrolü
+          await new Promise((resolve) => setTimeout(resolve, 2000));
           const newUrl = this.page!.url();
-          if (newUrl.includes("/bot")) {
-            throw new Error(
-              "Bot algılaması aşılamadı! Screenshot kontrol edin: screenshots/sompo-bot-detection-*.png"
-            );
+          if (newUrl.includes("/bot") || newUrl.includes("security") || newUrl.includes("validation")) {
+            console.log("⚠️  Bot kontrolü hala aktif, ama devam ediyoruz...");
+            // Artık hata atmıyoruz, devam ediyoruz
           }
         } catch (error: any) {
           console.error("Bot algılama hatası:", error.message);
@@ -470,8 +481,20 @@ export class SompoClient {
    * Screenshot al (debug için)
    */
   async screenshot(name: string): Promise<void> {
-    if (this.page) {
-      await this.page.screenshot({ path: `./screenshots/sompo-${name}.png` });
+    try {
+      if (this.page) {
+        // Screenshots klasörünü kontrol et, yoksa oluştur
+        const screenshotsDir = path.join(process.cwd(), "screenshots");
+        if (!fs.existsSync(screenshotsDir)) {
+          fs.mkdirSync(screenshotsDir, { recursive: true });
+        }
+        
+        const screenshotPath = path.join(screenshotsDir, `sompo-${name}.png`) as `${string}.png`;
+        await this.page.screenshot({ path: screenshotPath });
+      }
+    } catch (error) {
+      console.log(`⚠️ Screenshot alınamadı (${name}):`, error);
+      // Devam et, screenshot hatası kritik değil
     }
   }
 }
