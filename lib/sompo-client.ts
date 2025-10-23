@@ -74,6 +74,18 @@ export class SompoClient {
     this.page.on("pageerror", () => {}); // Page errorları sustur
     this.page.on("requestfailed", () => {}); // Request failed loglarını sustur
 
+    // JavaScript hatalarını sustur
+    await this.page.evaluateOnNewDocument(() => {
+      window.addEventListener("error", (e) => {
+        e.preventDefault();
+        return false;
+      });
+      window.addEventListener("unhandledrejection", (e) => {
+        e.preventDefault();
+        return false;
+      });
+    });
+
     // User agent ayarla
     await this.page.setUserAgent(
       "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -287,6 +299,48 @@ export class SompoClient {
         await new Promise((resolve) => setTimeout(resolve, 1000));
         const currentUrl = this.page!.url();
         console.log("  " + (i + 1) + "s:", currentUrl);
+
+        // OTP ekranı var mı kontrol et
+        const hasOTP = await this.page!.evaluate(() => {
+          return !!(
+            document.querySelector('input[placeholder*="OTP"]') ||
+            document.querySelector('input[placeholder*="kod"]') ||
+            document.querySelector('input[placeholder*="Kod"]') ||
+            document.querySelector('[class*="otp"]') ||
+            document.querySelector('[id*="otp"]') ||
+            document.querySelector('input[type="text"][maxlength="6"]') ||
+            document.querySelector('input[type="text"][maxlength="4"]')
+          );
+        });
+
+        if (hasOTP) {
+          console.log("🔐 OTP ekranı tespit edildi! OTP bekleniyor...");
+          await this.screenshot("otp-screen-detected");
+
+          // OTP'yi bekle (30 saniye)
+          console.log("⏳ OTP girişi bekleniyor (30 saniye)...");
+          for (let j = 0; j < 30; j++) {
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+            const url = this.page!.url();
+
+            // Dashboard'a yönlendirildi mi kontrol et
+            if (url.includes("/dashboard") && !url.includes("/login")) {
+              console.log("✅ OTP doğrulandı! Dashboard'a yönlendirildi.");
+              this.isLoggedIn = true;
+              await this.screenshot("otp-success");
+              return true;
+            }
+
+            // Hala OTP ekranındaysa devam et
+            if (j % 5 === 0 && j > 0) {
+              console.log(`  ⏳ OTP bekleniyor... ${j}/30 saniye`);
+            }
+          }
+
+          // 30 saniye sonunda hala OTP ekranındaysa
+          console.log("⚠️ OTP 30 saniyede girilmedi, devam ediliyor...");
+          break;
+        }
 
         if (!currentUrl.includes("/login")) {
           console.log("✅ Login sayfasından çıkıldı!");

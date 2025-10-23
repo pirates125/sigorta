@@ -17,6 +17,18 @@ export async function getTrafficQuoteNewFlow(
   currentPage.on("pageerror", () => {});
   currentPage.on("requestfailed", () => {});
 
+  // JavaScript hatalarını sustur
+  await currentPage.evaluateOnNewDocument(() => {
+    window.addEventListener("error", (e) => {
+      e.preventDefault();
+      return false;
+    });
+    window.addEventListener("unhandledrejection", (e) => {
+      e.preventDefault();
+      return false;
+    });
+  });
+
   // Screenshot wrapper - her zaman güncel page'i kullan
   const takeScreenshot = async (name: string) => {
     try {
