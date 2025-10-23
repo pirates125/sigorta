@@ -20,6 +20,7 @@ export interface QuoteResponseWithCompany {
   id: string;
   price: number;
   coverageDetails?: any;
+  responseData?: any;
   company: {
     id: string;
     name: string;
