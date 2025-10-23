@@ -113,15 +113,30 @@ export async function getTrafficQuoteNewFlow(
     // 4. "TEKLİF AL" butonunu bul ve tıkla - YENİ SEKME AÇILACAK
     console.log("📝 TEKLİF AL butonu aranıyor...");
 
-    // Yeni sekme açılmasını dinle
+    // Yeni sekme açılmasını dinle - SADECE SOMPO URL'Sİ OLAN
     const newPagePromise = new Promise<any>((resolve) => {
-      currentPage.browser().once("targetcreated", async (target) => {
+      const handleNewTarget = async (target: any) => {
         const newPage = await target.page();
         if (newPage) {
-          console.log("🆕 Yeni sekme yakalandı!");
-          resolve(newPage);
+          const url = newPage.url();
+          console.log("🆕 Yeni sekme yakalandı:", url);
+
+          // Sadece Sompo URL'si olan sekmeyi kabul et
+          if (
+            url.includes("somposigorta.com.tr") &&
+            !url.includes("about:blank")
+          ) {
+            console.log("✅ Sompo sekmesi bulundu!");
+            currentPage.browser().off("targetcreated", handleNewTarget); // Event listener'ı kaldır
+            resolve(newPage);
+          } else {
+            console.log("⚠️ Geçersiz sekme, devam ediliyor...");
+            newPage.close(); // Gereksiz sekmeyi kapat
+          }
         }
-      });
+      };
+
+      currentPage.browser().on("targetcreated", handleNewTarget);
     });
 
     const quoteButtonClicked = await currentPage.evaluate(() => {
@@ -150,7 +165,7 @@ export async function getTrafficQuoteNewFlow(
         new Promise((_, reject) =>
           setTimeout(
             () => reject(new Error("Yeni sekme açılmadı (timeout)")),
-            10000
+            15000 // 15 saniye timeout
           )
         ),
       ])) as Page;
