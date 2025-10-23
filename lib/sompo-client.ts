@@ -463,6 +463,43 @@ export class SompoClient {
               console.log("⚠️ Navigation timeout:", navError.message);
             });
 
+            // Popup'ları kontrol et ve kapat
+            console.log("🔍 Popup kontrolü yapılıyor...");
+            await this.page!.evaluate(() => {
+              // Cookie popup'ları
+              const cookieButtons = document.querySelectorAll(
+                '[id*="cookie"], [class*="cookie"], [id*="accept"], [class*="accept"]'
+              );
+              cookieButtons.forEach((btn) => {
+                if (
+                  btn.textContent?.toLowerCase().includes("kabul") ||
+                  btn.textContent?.toLowerCase().includes("accept") ||
+                  btn.textContent?.toLowerCase().includes("tamam")
+                ) {
+                  (btn as HTMLElement).click();
+                  console.log("🍪 Cookie popup kapatıldı");
+                }
+              });
+
+              // Genel popup'lar (yüksek z-index)
+              const popups = document.querySelectorAll(
+                '[style*="z-index"], [class*="popup"], [class*="modal"], [class*="overlay"]'
+              );
+              popups.forEach((popup) => {
+                const style = window.getComputedStyle(popup);
+                const zIndex = parseInt(style.zIndex);
+                if (zIndex > 1000) {
+                  const closeBtn = popup.querySelector(
+                    '[class*="close"], [class*="x"], button, [role="button"]'
+                  );
+                  if (closeBtn) {
+                    (closeBtn as HTMLElement).click();
+                    console.log("❌ Popup kapatıldı");
+                  }
+                }
+              });
+            });
+
             await this.screenshot("bot-detection-after-click");
           } else {
             console.log("⚠️  'Ana Sayfayı Yükle' butonu bulunamadı!");
