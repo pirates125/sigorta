@@ -400,7 +400,7 @@ export default function TrafficInsuranceForm() {
             <input
               type="checkbox"
               id="hasClaimHistory"
-              {...register("hasClaimHistory")}
+              checked={hasClaimHistory}
               onChange={(e) => {
                 setHasClaimHistory(e.target.checked);
                 setValue("hasClaimHistory", e.target.checked);
