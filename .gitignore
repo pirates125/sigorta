@@ -39,3 +39,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+/src/generated/prisma
+screenshots/
+
+# Sompo Session Files
+.sompo-session.json
+sompo-cookies.json
+*.session.json
