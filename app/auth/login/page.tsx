@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +14,7 @@ import {
 } from "@/components/ui/card";
 import { Shield } from "lucide-react";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -29,22 +29,17 @@ export default function LoginPage() {
     const password = formData.get("password") as string;
 
     try {
-      // NextAuth v5 callback endpoint'e direkt POST
-      const response = await fetch("/api/auth/callback/credentials", {
+      const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          email,
-          password,
-          redirect: false,
-        }),
+        body: JSON.stringify({ email, password }),
       });
 
       const data = await response.json();
 
-      if (response.ok && !data.error) {
+      if (response.ok && data.success) {
         toast.success("Giriş başarılı!");
         router.push("/dashboard");
         router.refresh();

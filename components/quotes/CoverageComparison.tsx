@@ -37,9 +37,7 @@ export function CoverageComparison({ responses }: CoverageComparisonProps) {
     <Card>
       <CardHeader>
         <CardTitle>Teminat Karşılaştırması</CardTitle>
-        <CardDescription>
-          Paketlere göre kapsam detayları
-        </CardDescription>
+        <CardDescription>Paketlere göre kapsam detayları</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="overflow-x-auto">
@@ -157,4 +155,3 @@ export function CoverageComparison({ responses }: CoverageComparisonProps) {
     </Card>
   );
 }
-

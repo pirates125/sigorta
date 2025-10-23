@@ -1,26 +1,23 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
 
 export function LogoutButton() {
-  const handleLogout = () => {
-    // NextAuth v5 signout - form submit kullan
-    const form = document.createElement("form");
-    form.method = "POST";
-    form.action = "/api/auth/signout";
-    
-    // CSRF token (NextAuth v5 gerektirir)
-    const csrfToken = document.querySelector('input[name="csrfToken"]')?.getAttribute('value');
-    if (csrfToken) {
-      const input = document.createElement("input");
-      input.type = "hidden";
-      input.name = "csrfToken";
-      input.value = csrfToken;
-      form.appendChild(input);
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    try {
+      // Custom logout endpoint
+      await fetch("/api/auth/logout", {
+        method: "POST",
+      });
+      
+      router.push("/");
+      router.refresh();
+    } catch (error) {
+      console.error("Logout error:", error);
     }
-    
-    document.body.appendChild(form);
-    form.submit();
   };
 
   return (
