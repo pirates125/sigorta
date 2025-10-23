@@ -14,7 +14,7 @@ export async function getTrafficQuoteNewFlow(
     console.log("🚗 Trafik sigortası teklifi alınıyor (Yeni Flow)...");
 
     // 1. "YENİ İŞ TEKLİFİ" butonuna tıkla
-    console.log("📋 Yeni İş Teklifi butonunu arıyorum...");
+    console.log("📋 Yeni İş Teklifi...");
     await page.evaluate(() => {
       const buttons = Array.from(document.querySelectorAll("button"));
       const btn = buttons.find((b) =>
@@ -22,19 +22,16 @@ export async function getTrafficQuoteNewFlow(
       );
       if (btn) (btn as HTMLElement).click();
     });
-    console.log("✅ Yeni İş Teklifi butonuna tıklandı");
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    await screenshot("after-new-proposal-click");
+    await new Promise((resolve) => setTimeout(resolve, 800));
 
     // 2. "Trafik" seçeneğine tıkla
-    console.log("🚦 Trafik seçeneğini arıyorum...");
+    console.log("🚦 Trafik...");
     await page.evaluate(() => {
       const divs = Array.from(document.querySelectorAll(".job__name"));
       const trafficDiv = divs.find((div) =>
         div.textContent?.includes("Trafik")
       );
       if (trafficDiv) {
-        // Parent'a tıkla (tüm card'a tıklamak için)
         const parent = trafficDiv.closest('[class*="job"]');
         if (parent) {
           (parent as HTMLElement).click();
@@ -43,18 +40,16 @@ export async function getTrafficQuoteNewFlow(
         }
       }
     });
-    console.log("✅ Trafik seçeneğine tıklandı");
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    await new Promise((resolve) => setTimeout(resolve, 800));
 
     // 3. "TEKLİF AL" butonuna tıkla
-    console.log("📝 Teklif Al butonunu arıyorum...");
+    console.log("📝 Teklif Al...");
     await page.evaluate(() => {
       const buttons = Array.from(document.querySelectorAll("button"));
       const btn = buttons.find((b) => b.textContent?.includes("TEKLİF AL"));
       if (btn) (btn as HTMLElement).click();
     });
-    console.log("✅ Teklif Al butonuna tıklandı");
-    await new Promise((resolve) => setTimeout(resolve, 3000));
+    await new Promise((resolve) => setTimeout(resolve, 1500));
     await screenshot("traffic-form-opened");
 
     // 4. Kasko checkbox'ını KALDIR (eğer seçiliyse)
@@ -79,76 +74,163 @@ export async function getTrafficQuoteNewFlow(
     });
     console.log("✅ Checkbox'lar ayarlandı");
 
-    // 6. TC Kimlik No gir
-    console.log("🆔 TC Kimlik giriliyor...");
-    await page.waitForSelector("#txtIdentityOrTaxNo", { timeout: 10000 });
-    await page.click("#txtIdentityOrTaxNo", { clickCount: 3 }); // Seç ve temizle
-    await page.type("#txtIdentityOrTaxNo", formData.driverTCKN, { delay: 50 });
+    // 6. TC Kimlik No gir - Dinamik selector bulma
+    console.log("🆔 TC Kimlik alanı aranıyor...");
+    const tcInput = await page.evaluate(() => {
+      // Farklı yöntemlerle TC input'u bul
+      let input = document.querySelector(
+        "#txtIdentityOrTaxNo"
+      ) as HTMLInputElement;
+      if (input) return { found: true, method: "id" };
+
+      // Placeholder ile ara
+      input = document.querySelector(
+        'input[placeholder*="Kimlik"]'
+      ) as HTMLInputElement;
+      if (input) return { found: true, method: "placeholder" };
+
+      // Label ile ara
+      const labels = Array.from(document.querySelectorAll("label"));
+      const tcLabel = labels.find(
+        (l) =>
+          l.textContent?.includes("TC") || l.textContent?.includes("Kimlik")
+      );
+      if (tcLabel) {
+        const inputId = tcLabel.getAttribute("for");
+        if (inputId) {
+          input = document.querySelector(`#${inputId}`) as HTMLInputElement;
+          if (input) return { found: true, method: "label" };
+        }
+      }
+
+      // Name attribute ile ara
+      input = document.querySelector(
+        'input[name*="identity"]'
+      ) as HTMLInputElement;
+      if (input) return { found: true, method: "name" };
+
+      return { found: false, method: "none" };
+    });
+
+    if (!tcInput.found) {
+      console.error("❌ TC Kimlik input'u bulunamadı!");
+      await screenshot("tc-input-not-found");
+      throw new Error("TC Kimlik input alanı bulunamadı");
+    }
+
+    console.log("✅ TC input bulundu:", tcInput.method);
+
+    // TC'yi gir - farklı methodlarla dene
+    await page.evaluate((tcNo) => {
+      const inputs = document.querySelectorAll("input");
+      for (const input of inputs) {
+        const placeholder =
+          input.getAttribute("placeholder")?.toLowerCase() || "";
+        const name = input.getAttribute("name")?.toLowerCase() || "";
+        const id = input.getAttribute("id")?.toLowerCase() || "";
+
+        if (
+          id.includes("identity") ||
+          id.includes("kimlik") ||
+          id.includes("tc") ||
+          placeholder.includes("kimlik") ||
+          placeholder.includes("tc") ||
+          name.includes("identity")
+        ) {
+          input.value = tcNo;
+          input.dispatchEvent(new Event("input", { bubbles: true }));
+          input.dispatchEvent(new Event("change", { bubbles: true }));
+          return true;
+        }
+      }
+      return false;
+    }, formData.driverTCKN);
+
     console.log("✅ TC Kimlik girildi:", formData.driverTCKN);
+    await new Promise((resolve) => setTimeout(resolve, 1500)); // Otomatik doldurma için kısa bekle
 
-    // TC girildikten sonra 2 saniye bekle (otomatik adres ve telefon doldurması için)
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    console.log("⏳ TC'den otomatik bilgiler dolduruldu (adres, telefon)...");
-
-    // 7. Plaka bilgilerini gir (şehir kodu + plaka)
+    // 7. Plaka bilgilerini gir
     console.log("🚘 Plaka bilgileri giriliyor...");
     const plateParts = formData.plate.match(/^(\d{2})([A-Z]+)(\d+)$/i);
     if (!plateParts) {
       throw new Error("Geçersiz plaka formatı: " + formData.plate);
     }
 
-    await page.click("#txtPlateNoCityNo");
-    await page.type("#txtPlateNoCityNo", plateParts[1], { delay: 50 });
-    console.log("  Şehir kodu:", plateParts[1]);
+    await page.evaluate(
+      (cityCode, plateNo) => {
+        // Şehir kodu
+        const cityInput = document.querySelector(
+          "#txtPlateNoCityNo"
+        ) as HTMLInputElement;
+        if (cityInput) {
+          cityInput.value = cityCode;
+          cityInput.dispatchEvent(new Event("input", { bubbles: true }));
+        }
 
-    await page.click("#txtPlateNo");
-    await page.type("#txtPlateNo", plateParts[2] + plateParts[3], {
-      delay: 50,
-    });
-    console.log("  Plaka:", plateParts[2] + plateParts[3]);
-
-    // 8. Tescil Seri Kod gir (varsa)
-    if (formData.registrationCode) {
-      console.log("📄 Tescil Seri Kod giriliyor...");
-      await page.click("#txtEGMNoCode");
-      await page.type("#txtEGMNoCode", formData.registrationCode, {
-        delay: 50,
-      });
-      console.log("✅ Tescil Seri Kod girildi:", formData.registrationCode);
-    }
-
-    // 9. Tescil/ASBIS No gir
-    if (formData.registrationNumber) {
-      console.log("📄 Tescil No giriliyor...");
-      await page.click("#txtEGMNoNumber");
-      await page.type("#txtEGMNoNumber", formData.registrationNumber, {
-        delay: 50,
-      });
-      console.log("✅ Tescil No girildi:", formData.registrationNumber);
-    }
-
-    // 10. EGM Sorgula butonuna tıkla
-    console.log("🔍 EGM Sorgula butonu bekleniyor...");
-    await page.waitForSelector("#btnSearchEgm", { timeout: 10000 });
-
-    // Butonun enable olmasını bekle
-    await page.waitForFunction(
-      () => {
-        const btn = document.querySelector("#btnSearchEgm") as HTMLImageElement;
-        return btn && !btn.hasAttribute("disabled");
+        // Plaka
+        const plateInput = document.querySelector(
+          "#txtPlateNo"
+        ) as HTMLInputElement;
+        if (plateInput) {
+          plateInput.value = plateNo;
+          plateInput.dispatchEvent(new Event("input", { bubbles: true }));
+        }
       },
-      { timeout: 10000 }
+      plateParts[1],
+      plateParts[2] + plateParts[3]
     );
+    console.log("✅ Plaka:", plateParts[1], plateParts[2] + plateParts[3]);
 
-    // JavaScript ile EGM butonuna tıkla
-    await page.evaluate(() => {
+    // 8. Tescil Seri Kod ve Tescil No - Hızlı doldur
+    await page.evaluate(
+      (regCode, regNumber) => {
+        // Tescil Seri Kod
+        const regCodeInput = document.querySelector(
+          "#txtEGMNoCode"
+        ) as HTMLInputElement;
+        if (regCodeInput && regCode) {
+          regCodeInput.value = regCode;
+          regCodeInput.dispatchEvent(new Event("input", { bubbles: true }));
+        }
+
+        // Tescil No
+        const regNoInput = document.querySelector(
+          "#txtEGMNoNumber"
+        ) as HTMLInputElement;
+        if (regNoInput && regNumber) {
+          regNoInput.value = regNumber;
+          regNoInput.dispatchEvent(new Event("input", { bubbles: true }));
+        }
+      },
+      formData.registrationCode || "",
+      formData.registrationNumber || ""
+    );
+    console.log("✅ Tescil bilgileri girildi");
+
+    // 9. EGM Sorgula - Dinamik ve hızlı
+    console.log("🔍 EGM Sorgula...");
+    const egmClicked = await page.evaluate(() => {
       const btn = document.querySelector("#btnSearchEgm") as HTMLElement;
-      if (btn) btn.click();
+      if (btn && !btn.hasAttribute("disabled")) {
+        btn.click();
+        return true;
+      }
+      return false;
     });
-    console.log("✅ EGM Sorgula butonuna tıklandı");
 
-    // EGM sorgulamasının tamamlanmasını bekle
-    await new Promise((resolve) => setTimeout(resolve, 5000));
+    if (!egmClicked) {
+      console.log("⏳ EGM butonu henüz aktif değil, bekleniyor...");
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await page.evaluate(() => {
+        const btn = document.querySelector("#btnSearchEgm") as HTMLElement;
+        if (btn) btn.click();
+      });
+    }
+
+    console.log("✅ EGM Sorgula tıklandı");
+
+    // Kısa bekle - EGM sonucu için
+    await new Promise((resolve) => setTimeout(resolve, 2000));
     await screenshot("after-egm-query");
 
     // 11. Adres ve telefon otomatik dolduruldu mu kontrol et
@@ -183,20 +265,55 @@ export async function getTrafficQuoteNewFlow(
       console.log("  📞 Telefon:", autoFilledInfo.phone);
     }
 
-    // 12. Teklif Oluştur butonuna tıkla
-    console.log("💼 Teklif Oluştur butonuna tıklanıyor...");
-    await page.waitForSelector("#btnProposalCreate", { timeout: 5000 });
-
-    // JavaScript ile tıkla
+    // 10. Teklif Oluştur butonuna tıkla
+    console.log("💼 Teklif Oluştur...");
     await page.evaluate(() => {
       const link = document.querySelector("#btnProposalCreate") as HTMLElement;
       if (link) link.click();
     });
     console.log("✅ Teklif oluşturma isteği gönderildi");
 
-    // 13. Teklif sonucunu bekle - İki farklı container'dan birini bekle
-    console.log("⏳ Teklif sonucu bekleniyor...");
-    await new Promise((resolve) => setTimeout(resolve, 8000)); // 8 saniye bekle
+    // 11. Teklif sonucu için akıllı bekle - Her 500ms'de kontrol et
+    console.log("⏳ Teklif sonucu bekleniyor (maksimum 30 saniye)...");
+    let proposalFound = false;
+    let attempts = 0;
+    const maxAttempts = 60; // 60 * 500ms = 30 saniye
+
+    while (!proposalFound && attempts < maxAttempts) {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      attempts++;
+
+      proposalFound = await page.evaluate(() => {
+        const cascoContainer = document.querySelector(
+          "#loadedDivCascoProposal2"
+        );
+        const trafficContainer = document.querySelector(
+          "#loadedDivTrafficProposalAlternative"
+        );
+
+        return (
+          (cascoContainer &&
+            (cascoContainer as HTMLElement).style.display !== "none") ||
+          (trafficContainer &&
+            (trafficContainer as HTMLElement).style.display !== "none")
+        );
+      });
+
+      if (proposalFound) {
+        console.log("✅ Teklif sonucu hazır! (" + attempts * 0.5 + " saniye)");
+        break;
+      }
+
+      // Her 5 saniyede bir log
+      if (attempts % 10 === 0) {
+        console.log("  ⏳ " + attempts * 0.5 + " saniye geçti...");
+      }
+    }
+
+    if (!proposalFound) {
+      console.warn("⚠️ Teklif sonucu görünmedi, devam ediliyor...");
+    }
+
     await screenshot("waiting-for-proposal");
 
     // 14. Sonuçları çek (önce Kasko container'ından, yoksa Trafik Alternative'den)

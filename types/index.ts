@@ -2,24 +2,27 @@ import { InsuranceType } from "@prisma/client";
 
 // Trafik Sigortası Form
 export interface TrafficInsuranceFormData {
+  // ZORUNLU ALANLAR
   plate: string;
   registrationCode: string; // Tescil Seri Kod (ABC - 3 karakter)
   registrationNumber: string; // Tescil/ASBIS No (19 karakter)
-  vehicleType: string;
-  vehicleBrand: string;
-  vehicleModel: string;
-  vehicleYear: number;
-  engineNumber: string;
-  chassisNumber: string;
-  driverName: string;
   driverTCKN: string;
-  driverBirthDate: string;
-  driverLicenseDate: string;
+
+  // OPSİYONEL ALANLAR
+  vehicleType?: string;
+  vehicleBrand?: string;
+  vehicleModel?: string;
+  vehicleYear?: number;
+  engineNumber?: string;
+  chassisNumber?: string;
+  driverName?: string;
+  driverBirthDate?: string;
+  driverLicenseDate?: string;
   previousInsurance?: string;
-  hasClaimHistory: boolean;
+  hasClaimHistory?: boolean;
   claimCount?: number;
   email?: string;
-  phone?: string; // Telefon (5XXXXXXXXX - 10 karakter)
+  phone?: string;
 }
 
 // Kasko Form

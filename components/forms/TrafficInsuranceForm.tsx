@@ -25,26 +25,32 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
 const trafficInsuranceSchema = z.object({
+  // ZORUNLU ALANLAR
   plate: z.string().min(7, "Geçerli bir plaka girin").max(10),
-  registrationCode: z.string().min(1, "Tescil seri kod girin (örn: ABC)").max(3, "Maksimum 3 karakter"),
-  registrationNumber: z.string().min(1, "Tescil numarası girin").max(19, "Maksimum 19 karakter"),
-  vehicleType: z.string().min(1, "Araç tipi seçin"),
-  vehicleBrand: z.string().min(1, "Marka girin"),
-  vehicleModel: z.string().min(1, "Model girin"),
-  vehicleYear: z
-    .number()
-    .min(1990)
-    .max(new Date().getFullYear() + 1),
-  engineNumber: z.string().min(1, "Motor numarası girin"),
-  chassisNumber: z.string().min(17, "Şase numarası 17 karakter olmalıdır"),
-  driverName: z.string().min(2, "Sürücü adı girin"),
+  registrationCode: z
+    .string()
+    .min(1, "Tescil seri kod girin (örn: ABC)")
+    .max(3, "Maksimum 3 karakter"),
+  registrationNumber: z
+    .string()
+    .min(1, "Tescil numarası girin")
+    .max(19, "Maksimum 19 karakter"),
   driverTCKN: z.string().length(11, "TC Kimlik No 11 haneli olmalıdır"),
-  driverBirthDate: z.string().min(1, "Doğum tarihi girin"),
-  driverLicenseDate: z.string().min(1, "Ehliyet tarihi girin"),
-  hasClaimHistory: z.boolean(),
+
+  // OPSİYONEL ALANLAR
+  vehicleType: z.string().optional(),
+  vehicleBrand: z.string().optional(),
+  vehicleModel: z.string().optional(),
+  vehicleYear: z.number().optional(),
+  engineNumber: z.string().optional(),
+  chassisNumber: z.string().optional(),
+  driverName: z.string().optional(),
+  driverBirthDate: z.string().optional(),
+  driverLicenseDate: z.string().optional(),
+  hasClaimHistory: z.boolean().optional(),
   claimCount: z.number().min(0).optional(),
   email: z.string().email("Geçerli bir email girin").optional(),
-  phone: z.string().optional(), // Sompo TC'den otomatik çeker
+  phone: z.string().optional(),
 });
 
 type TrafficInsuranceFormData = z.infer<typeof trafficInsuranceSchema>;
@@ -61,10 +67,6 @@ export default function TrafficInsuranceForm() {
     formState: { errors },
   } = useForm<TrafficInsuranceFormData>({
     resolver: zodResolver(trafficInsuranceSchema),
-    defaultValues: {
-      hasClaimHistory: false,
-      claimCount: 0,
-    },
   });
 
   const onSubmit = async (data: TrafficInsuranceFormData) => {
@@ -364,7 +366,9 @@ export default function TrafficInsuranceForm() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="phone">Telefon (Opsiyonel - TC'den otomatik alınır)</Label>
+              <Label htmlFor="phone">
+                Telefon (Opsiyonel - TC'den otomatik alınır)
+              </Label>
               <Input
                 id="phone"
                 type="tel"
