@@ -2,8 +2,19 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
-import { Shield, FileText, Clock, CheckCircle, Plus } from "lucide-react";
+import {
+  Shield,
+  FileText,
+  Clock,
+  CheckCircle,
+  Plus,
+  Users,
+  DollarSign,
+  Palette,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { LogoutButton } from "@/components/LogoutButton";
+import { GlobalSearch } from "@/components/GlobalSearch";
 import {
   Card,
   CardContent,
@@ -11,6 +22,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { RenewalWidget } from "@/components/dashboard/RenewalWidget";
 import {
   Table,
   TableBody,
@@ -70,7 +82,11 @@ export default async function DashboardPage() {
     HEALTH: "Sağlık",
   };
 
-  const statusLabels = {
+  const statusLabels: Record<
+    string,
+    { label: string; icon: any; color: string }
+  > = {
+    DRAFT: { label: "Taslak", icon: FileText, color: "text-gray-600" },
     PENDING: { label: "Bekliyor", icon: Clock, color: "text-yellow-600" },
     PROCESSING: { label: "İşleniyor", icon: Clock, color: "text-blue-600" },
     COMPLETED: {
@@ -78,32 +94,92 @@ export default async function DashboardPage() {
       icon: CheckCircle,
       color: "text-green-600",
     },
+    CONTACTED: {
+      label: "İletişimde",
+      icon: FileText,
+      color: "text-purple-600",
+    },
+    QUOTED: {
+      label: "Teklif Sunuldu",
+      icon: FileText,
+      color: "text-indigo-600",
+    },
+    WON: { label: "Kazanıldı", icon: CheckCircle, color: "text-emerald-600" },
+    LOST: { label: "Kaybedildi", icon: FileText, color: "text-red-600" },
     FAILED: { label: "Başarısız", icon: CheckCircle, color: "text-red-600" },
   };
 
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center space-x-2">
-            <Shield className="h-8 w-8 text-primary" />
-            <span className="text-2xl font-bold">Sigorta Acentesi</span>
-          </Link>
-          <div className="flex items-center space-x-4">
-            <span className="text-sm text-muted-foreground">
-              Hoş geldiniz, {session.user.name}
-            </span>
-            {session.user.role === "ADMIN" && (
-              <Link href="/admin">
-                <Button variant="outline">Admin Paneli</Button>
+      <header className="border-b bg-background/95 backdrop-blur sticky top-0 z-40">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between gap-4">
+            {/* Logo */}
+            <Link href="/" className="flex items-center space-x-2 shrink-0">
+              <Shield className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
+              <span className="text-lg sm:text-2xl font-bold">
+                <span className="hidden sm:inline">Sigorta Acentesi</span>
+                <span className="sm:hidden">Sigorta</span>
+              </span>
+            </Link>
+
+            {/* Search - Hidden on mobile */}
+            <div className="hidden lg:block flex-1 max-w-md">
+              <GlobalSearch />
+            </div>
+
+            {/* User Actions */}
+            <div className="flex items-center gap-2 shrink-0">
+              <Link
+                href="/profile"
+                className="text-sm text-muted-foreground hidden xl:flex items-center gap-2 hover:text-foreground transition-colors"
+              >
+                <div className="w-8 h-8 rounded-full bg-linear-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-xs font-bold">
+                  {session.user.name?.[0]?.toUpperCase()}
+                </div>
+                <span>Hoş geldiniz, {session.user.name}</span>
               </Link>
-            )}
-            <form action="/api/auth/signout" method="POST">
-              <Button variant="ghost" type="submit">
-                Çıkış
-              </Button>
-            </form>
+              <Link href="/referrals">
+                <Button variant="outline" size="sm" className="hidden md:flex">
+                  <Users className="h-4 w-4 md:mr-2" />
+                  <span className="hidden md:inline">Arkadaş Davet</span>
+                </Button>
+              </Link>
+              {session.user.role === "ADMIN" && (
+                <Link href="/admin">
+                  <Button variant="outline" size="sm">
+                    <span className="hidden sm:inline">Admin Paneli</span>
+                    <span className="sm:hidden">Admin</span>
+                  </Button>
+                </Link>
+              )}
+              {session.user.role === "BROKER" && (
+                <Link href="/broker">
+                  <Button variant="outline" size="sm">
+                    <span className="hidden sm:inline">Broker Paneli</span>
+                    <span className="sm:hidden">Broker</span>
+                  </Button>
+                </Link>
+              )}
+              <Link href="/profile" className="xl:hidden">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-8 h-8 p-0 rounded-full"
+                >
+                  <div className="w-8 h-8 rounded-full bg-linear-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-xs font-bold">
+                    {session.user.name?.[0]?.toUpperCase()}
+                  </div>
+                </Button>
+              </Link>
+              <LogoutButton />
+            </div>
+          </div>
+
+          {/* Mobile Search */}
+          <div className="mt-4 lg:hidden">
+            <GlobalSearch />
           </div>
         </div>
       </header>
@@ -112,7 +188,7 @@ export default async function DashboardPage() {
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-6xl mx-auto space-y-8">
           {/* Stats */}
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-4 gap-6">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
@@ -141,6 +217,25 @@ export default async function DashboardPage() {
               </CardContent>
             </Card>
 
+            <Card className="bg-linear-to-br from-primary/10 to-primary/5 border-primary/20">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Arkadaş Davet Et
+                </CardTitle>
+                <DollarSign className="h-4 w-4 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <Link href="/referrals">
+                  <Button className="w-full" variant="default">
+                    Komisyon Kazan
+                  </Button>
+                </Link>
+                <p className="text-xs text-muted-foreground mt-2">
+                  %5 komisyon fırsatı
+                </p>
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
@@ -155,6 +250,35 @@ export default async function DashboardPage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Theme Customization Banner */}
+          <Card className="bg-linear-to-r from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20 border-purple-200 dark:border-purple-800">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-white dark:bg-gray-800 rounded-full flex items-center justify-center shadow-md">
+                    <Palette className="h-6 w-6 text-purple-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-lg">
+                      Renk Temanızı Özelleştirin! 🎨
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      9 farklı renk arasından sitenizin temasını seçin
+                    </p>
+                  </div>
+                </div>
+                <Link href="/profile">
+                  <Button
+                    variant="default"
+                    className="bg-linear-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+                  >
+                    Renkleri Gör
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Recent Quotes */}
           <Card>
@@ -240,6 +364,9 @@ export default async function DashboardPage() {
             </CardContent>
           </Card>
 
+          {/* Renewal Widget */}
+          <RenewalWidget />
+
           {/* Policies */}
           {policies.length > 0 && (
             <Card>
@@ -256,6 +383,7 @@ export default async function DashboardPage() {
                       <TableHead>Tür</TableHead>
                       <TableHead>Tutar</TableHead>
                       <TableHead>Durum</TableHead>
+                      <TableHead>İşlem</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -275,6 +403,13 @@ export default async function DashboardPage() {
                           <span className="text-sm text-muted-foreground">
                             {policy.status}
                           </span>
+                        </TableCell>
+                        <TableCell>
+                          <Link href={`/policies/${policy.id}`}>
+                            <Button variant="outline" size="sm">
+                              Görüntüle
+                            </Button>
+                          </Link>
                         </TableCell>
                       </TableRow>
                     ))}

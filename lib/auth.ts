@@ -15,8 +15,30 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   pages: {
     signIn: "/auth/login",
-    signOut: "/auth/logout",
     error: "/auth/error",
+  },
+  callbacks: {
+    async jwt({ token, user }) {
+      if (user) {
+        token.role = user.role;
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      if (token && session.user) {
+        session.user.id = token.sub!;
+        session.user.role = token.role as any;
+      }
+      return session;
+    },
+    async redirect({ url, baseUrl }) {
+      // Eğer url bir callback içeriyorsa onu kullan
+      if (url.startsWith("/")) return `${baseUrl}${url}`;
+      // Eğer url tam bir URL ise ve bizim domain'imiz ise izin ver
+      else if (new URL(url).origin === baseUrl) return url;
+      // Değilse ana sayfaya yönlendir
+      return baseUrl;
+    },
   },
   providers: [
     Credentials({
@@ -61,19 +83,4 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
     }),
   ],
-  callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.role = user.role;
-      }
-      return token;
-    },
-    async session({ session, token }) {
-      if (token && session.user) {
-        session.user.id = token.sub!;
-        session.user.role = token.role as any;
-      }
-      return session;
-    },
-  },
 });

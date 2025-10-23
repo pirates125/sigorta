@@ -1,21 +1,39 @@
 import puppeteer, { Browser, Page } from "puppeteer";
 import { ScraperResult } from "@/types";
 
+export interface ScraperConfig {
+  timeout?: number;
+  retries?: number;
+  retryDelay?: number;
+  headless?: boolean;
+}
+
 export abstract class BaseScraper {
   protected browser: Browser | null = null;
   protected page: Page | null = null;
   protected companyCode: string;
   protected companyName: string;
   protected timeout: number = 60000; // 60 saniye
+  protected retries: number = 2; // 2 deneme
+  protected retryDelay: number = 3000; // 3 saniye bekleme
+  protected headless: boolean = true;
 
-  constructor(companyCode: string, companyName: string) {
+  constructor(
+    companyCode: string,
+    companyName: string,
+    config: ScraperConfig = {}
+  ) {
     this.companyCode = companyCode;
     this.companyName = companyName;
+    this.timeout = config.timeout || this.timeout;
+    this.retries = config.retries || this.retries;
+    this.retryDelay = config.retryDelay || this.retryDelay;
+    this.headless = config.headless ?? this.headless;
   }
 
   async initialize(): Promise<void> {
     this.browser = await puppeteer.launch({
-      headless: true,
+      headless: this.headless,
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
@@ -25,6 +43,11 @@ export abstract class BaseScraper {
       ],
     });
     this.page = await this.browser.newPage();
+
+    // Navigation timeout ayarla
+    this.page.setDefaultNavigationTimeout(this.timeout);
+    this.page.setDefaultTimeout(this.timeout);
+
     await this.page.setViewport({ width: 1920, height: 1080 });
     await this.page.setUserAgent(
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -55,33 +78,54 @@ export abstract class BaseScraper {
   // Her sigorta şirketi kendi scrape metodunu implement edecek
   abstract scrape(insuranceType: string, formData: any): Promise<ScraperResult>;
 
-  // Ana çalıştırma metodu
+  // Ana çalıştırma metodu - Retry mekanizmalı
   async run(insuranceType: string, formData: any): Promise<ScraperResult> {
     const startTime = Date.now();
+    let lastError: Error | null = null;
 
-    try {
-      await this.initialize();
-      const result = await this.scrape(insuranceType, formData);
+    for (let attempt = 0; attempt <= this.retries; attempt++) {
+      try {
+        if (attempt > 0) {
+          console.log(
+            `[${this.companyName}] Retry attempt ${attempt}/${this.retries}`
+          );
+          await this.waitForTimeout(this.retryDelay);
+        }
 
-      return {
-        ...result,
-        duration: Date.now() - startTime,
-      };
-    } catch (error: any) {
-      console.error(`Scraper error (${this.companyName}):`, error);
+        await this.initialize();
+        const result = await this.scrape(insuranceType, formData);
 
-      return {
-        companyCode: this.companyCode,
-        companyName: this.companyName,
-        price: 0,
-        currency: "TRY",
-        success: false,
-        error: error.message || "Scraper hatası",
-        duration: Date.now() - startTime,
-      };
-    } finally {
-      await this.cleanup();
+        return {
+          ...result,
+          duration: Date.now() - startTime,
+        };
+      } catch (error: any) {
+        lastError = error;
+        console.error(
+          `[${this.companyName}] Attempt ${attempt + 1} failed:`,
+          error.message
+        );
+
+        // Cleanup yap ve bir sonraki deneme için hazırlan
+        await this.cleanup().catch(() => {});
+
+        // Son denemeyse hata döndür
+        if (attempt === this.retries) {
+          break;
+        }
+      }
     }
+
+    // Tüm denemeler başarısız oldu
+    return {
+      companyCode: this.companyCode,
+      companyName: this.companyName,
+      price: 0,
+      currency: "TRY",
+      success: false,
+      error: lastError?.message || "Scraper hatası",
+      duration: Date.now() - startTime,
+    };
   }
 
   // Yardımcı metodlar

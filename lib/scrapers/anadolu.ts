@@ -1,5 +1,6 @@
 import { BaseScraper } from "./base";
 import { ScraperResult } from "@/types";
+import { generateMockResult } from "./mock-utils";
 
 /**
  * Anadolu Sigorta Scraper
@@ -42,32 +43,17 @@ export class AnadoluScraper extends BaseScraper {
   }
 
   private getMockResult(insuranceType: string, formData: any): ScraperResult {
-    // Rastgele ama gerçekçi fiyat
-    const basePrice = 1400;
-    const variance = Math.random() * 600;
-    const price = Math.round(basePrice + variance);
-
     // 10% şans ile hata döndür (gerçek senaryoları simüle etmek için)
     if (Math.random() < 0.1) {
       throw new Error("Site yavaş yanıt verdi");
     }
 
-    return {
-      companyCode: this.companyCode,
-      companyName: this.companyName,
-      price,
-      currency: "TRY",
-      coverageDetails: {
-        limit: "Yasal Limitler Dahilinde",
-        deductible: 0,
-        coverage: ["Zorunlu Mali Sorumluluk"],
-      },
-      responseData: {
-        quoteReference: `ANADOLU-${Date.now()}`,
-        validUntil: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      },
-      success: true,
-      duration: 0,
-    };
+    return generateMockResult(
+      this.companyCode,
+      this.companyName,
+      insuranceType,
+      formData,
+      { min: 1400, max: 2000 }
+    );
   }
 }

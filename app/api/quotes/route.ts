@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { generateAccessToken } from "@/lib/utils";
 import { z } from "zod";
+import { sendQuoteReadyEmail } from "@/lib/email";
 
 const quoteRequestSchema = z.object({
   insuranceType: z.enum(["TRAFFIC", "KASKO", "DASK", "HEALTH"]),
@@ -129,10 +130,42 @@ async function startScrapers(
     Promise.all(scraperPromises)
       .then(async () => {
         // Tüm scraper'lar bitti, quote durumunu güncelle
-        await prisma.quote.update({
+        const updatedQuote = await prisma.quote.update({
           where: { id: quoteId },
           data: { status: "COMPLETED" },
+          include: {
+            user: {
+              select: {
+                name: true,
+                email: true,
+              },
+            },
+            responses: {
+              orderBy: {
+                price: "asc",
+              },
+              take: 1,
+            },
+          },
         });
+
+        // Teklif hazır email'i gönder
+        if (updatedQuote.user && updatedQuote.responses.length > 0) {
+          try {
+            await sendQuoteReadyEmail({
+              to: updatedQuote.user.email,
+              name: updatedQuote.user.name || "Değerli Müşteri",
+              quoteId: updatedQuote.id,
+              insuranceType: updatedQuote.insuranceType,
+              responseCount: await prisma.quoteResponse.count({
+                where: { quoteId: updatedQuote.id },
+              }),
+              bestPrice: Number(updatedQuote.responses[0].price),
+            });
+          } catch (emailError) {
+            console.error("Quote ready email error:", emailError);
+          }
+        }
       })
       .catch((error) => {
         console.error("Scrapers failed:", error);

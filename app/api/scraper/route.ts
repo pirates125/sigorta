@@ -3,6 +3,11 @@ import { prisma } from "@/lib/prisma";
 import { SompoScraper } from "@/lib/scrapers/sompo";
 import { AnadoluScraper } from "@/lib/scrapers/anadolu";
 import { AkScraper } from "@/lib/scrapers/ak";
+import { AxaScraper } from "@/lib/scrapers/axa";
+import { AllianzScraper } from "@/lib/scrapers/allianz";
+import { HdiScraper } from "@/lib/scrapers/hdi";
+import { QuickScraper } from "@/lib/scrapers/quick";
+import { BaseScraper } from "@/lib/scrapers/base";
 
 export async function POST(req: Request) {
   try {
@@ -12,7 +17,7 @@ export async function POST(req: Request) {
     const startTime = Date.now();
 
     // Uygun scraper'ı seç
-    let scraper;
+    let scraper: BaseScraper;
     switch (companyCode) {
       case "SOMPO":
         scraper = new SompoScraper();
@@ -22,6 +27,18 @@ export async function POST(req: Request) {
         break;
       case "AK":
         scraper = new AkScraper();
+        break;
+      case "AXA":
+        scraper = new AxaScraper();
+        break;
+      case "ALLIANZ":
+        scraper = new AllianzScraper();
+        break;
+      case "HDI":
+        scraper = new HdiScraper();
+        break;
+      case "QUICK":
+        scraper = new QuickScraper();
         break;
       default:
         throw new Error(`Desteklenmeyen şirket: ${companyCode}`);

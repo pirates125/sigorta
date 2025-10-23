@@ -80,21 +80,35 @@ export default function TrafficInsuranceForm() {
         }),
       });
 
-      if (!response.ok) {
-        throw new Error("Teklif isteği başarısız");
-      }
-
       const result = await response.json();
 
-      toast.success("Teklif isteği alındı!", {
-        description: "Fiyatlar karşılaştırılıyor...",
+      if (!response.ok) {
+        // Detaylı hata mesajı göster
+        const errorMessage = result.message || "Teklif isteği başarısız oldu";
+        toast.error("İşlem Başarısız", {
+          description: errorMessage,
+          duration: 5000,
+        });
+        return;
+      }
+
+      toast.success("Teklif İsteği Alındı! 🎉", {
+        description: "Sigorta şirketlerinden fiyatlar karşılaştırılıyor...",
+        duration: 3000,
       });
 
       // Sonuç sayfasına yönlendir
-      router.push(`/quotes/${result.quoteId}?token=${result.accessToken}`);
+      const redirectUrl = result.accessToken
+        ? `/quotes/${result.quoteId}?token=${result.accessToken}`
+        : `/quotes/${result.quoteId}`;
+
+      router.push(redirectUrl);
     } catch (error) {
-      toast.error("Bir hata oluştu", {
-        description: "Lütfen tekrar deneyin",
+      console.error("Form submit error:", error);
+      toast.error("Beklenmeyen Bir Hata Oluştu", {
+        description:
+          "Lütfen internet bağlantınızı kontrol edip tekrar deneyin.",
+        duration: 5000,
       });
     } finally {
       setIsLoading(false);

@@ -2,11 +2,14 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
+import { generateReferralCode } from "@/lib/referral-generator";
+import { sendWelcomeEmail } from "@/lib/email";
 
 const registerSchema = z.object({
   name: z.string().min(2, "İsim en az 2 karakter olmalıdır"),
   email: z.string().email("Geçerli bir email adresi girin"),
   password: z.string().min(6, "Şifre en az 6 karakter olmalıdır"),
+  referralCode: z.string().optional(),
 });
 
 export async function POST(req: Request) {
@@ -27,8 +30,37 @@ export async function POST(req: Request) {
       );
     }
 
+    // Referans kodu kontrolü
+    let referrerId: string | undefined;
+    if (validatedData.referralCode) {
+      const referrer = await prisma.user.findUnique({
+        where: { referralCode: validatedData.referralCode },
+        select: { id: true },
+      });
+
+      if (!referrer) {
+        return NextResponse.json(
+          { message: "Geçersiz referans kodu" },
+          { status: 400 }
+        );
+      }
+
+      referrerId = referrer.id;
+    }
+
     // Şifreyi hashle
     const hashedPassword = await bcrypt.hash(validatedData.password, 10);
+
+    // Benzersiz referans kodu oluştur
+    let userReferralCode: string;
+    let isUnique = false;
+    do {
+      userReferralCode = generateReferralCode();
+      const existing = await prisma.user.findUnique({
+        where: { referralCode: userReferralCode },
+      });
+      isUnique = !existing;
+    } while (!isUnique);
 
     // Kullanıcı oluştur
     const user = await prisma.user.create({
@@ -37,15 +69,41 @@ export async function POST(req: Request) {
         email: validatedData.email,
         password: hashedPassword,
         role: "USER",
+        referralCode: userReferralCode,
+        referredBy: referrerId,
       },
       select: {
         id: true,
         name: true,
         email: true,
         role: true,
+        referralCode: true,
         createdAt: true,
       },
     });
+
+    // Eğer referans ile kaydolduysa, Referral kaydı oluştur
+    if (referrerId) {
+      await prisma.referral.create({
+        data: {
+          referrerId,
+          referredUserId: user.id,
+          referralCode: validatedData.referralCode!,
+          status: "PENDING", // İlk poliçe alınca COMPLETED olacak
+        },
+      });
+    }
+
+    // Hoşgeldin email'i gönder
+    try {
+      await sendWelcomeEmail({
+        to: user.email,
+        name: user.name || "Değerli Kullanıcı",
+      });
+    } catch (emailError) {
+      console.error("Welcome email error:", emailError);
+      // Email hatası kullanıcı kaydını etkilemez
+    }
 
     return NextResponse.json(
       {

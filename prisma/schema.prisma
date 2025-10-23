@@ -10,6 +10,7 @@ datasource db {
 enum Role {
   USER
   ADMIN
+  BROKER
 }
 
 enum InsuranceType {
@@ -20,10 +21,15 @@ enum InsuranceType {
 }
 
 enum QuoteStatus {
-  PENDING
-  PROCESSING
-  COMPLETED
-  FAILED
+  DRAFT      // Taslak - henüz gönderilmemiş
+  PENDING    // Beklemede - scraper çalışıyor
+  PROCESSING // İşleniyor
+  COMPLETED  // Tamamlandı - teklifler geldi
+  CONTACTED  // Müşteri ile iletişime geçildi
+  QUOTED     // Teklif sunuldu
+  WON        // Kazanıldı - poliçe satıldı
+  LOST       // Kaybedildi
+  FAILED     // Hata oluştu
 }
 
 enum PolicyStatus {
@@ -33,10 +39,39 @@ enum PolicyStatus {
   EXPIRED
 }
 
+enum QuotePriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum RenewalStatus {
+  NOT_DUE        // Vade uzak
+  UPCOMING       // 30 gün içinde
+  DUE_SOON       // 15 gün içinde
+  URGENT         // 7 gün içinde
+  EXPIRED        // Süresi dolmuş
+  RENEWED        // Yenilenmiş
+}
+
 enum ScraperStatus {
   SUCCESS
   FAILED
   TIMEOUT
+}
+
+enum CommissionStatus {
+  PENDING
+  APPROVED
+  PAID
+  REJECTED
+}
+
+enum ReferralStatus {
+  PENDING
+  COMPLETED
+  EXPIRED
 }
 
 model User {
@@ -48,13 +83,25 @@ model User {
   emailVerified DateTime?
   image         String?
   blocked       Boolean   @default(false)
+  referralCode  String?   @unique
+  referredBy    String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
-  
-  quotes        Quote[]
-  policies      Policy[]
-  accounts      Account[]
-  sessions      Session[]
+
+  quotes            Quote[]
+  assignedQuotes    Quote[]         @relation("AssignedQuotes")
+  policies          Policy[]
+  accounts          Account[]
+  sessions          Session[]
+  referralsGiven    Referral[]      @relation("ReferrerUser")
+  referralsReceived Referral[]      @relation("ReferredUser")
+  commissions       Commission[]
+  companyRatings    CompanyRating[]
+  quoteNotes        QuoteNote[]
+  createdTasks      QuoteTask[]     @relation("CreatedTasks")
+  assignedTasks     QuoteTask[]     @relation("AssignedTasks")
+  referrer          User?           @relation("UserReferrals", fields: [referredBy], references: [id])
+  referredUsers     User[]          @relation("UserReferrals")
 
   @@map("users")
 }
@@ -99,21 +146,25 @@ model VerificationToken {
 }
 
 model InsuranceCompany {
-  id              String          @id @default(cuid())
-  name            String          @unique
-  code            String          @unique
+  id              String   @id @default(cuid())
+  name            String   @unique
+  code            String   @unique
   logo            String?
   website         String?
-  scraperEnabled  Boolean         @default(true)
-  hasApi          Boolean         @default(false)
+  scraperEnabled  Boolean  @default(true)
+  hasApi          Boolean  @default(false)
   apiCredentials  Json?
   scraperConfig   Json?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  
-  quoteResponses  QuoteResponse[]
-  policies        Policy[]
-  scraperLogs     ScraperLog[]
+  rating          Decimal? @db.Decimal(3, 2) // 0.00 - 5.00
+  coverageScore   Int? // 0 - 100
+  avgResponseTime Int? // milliseconds
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  quoteResponses QuoteResponse[]
+  policies       Policy[]
+  scraperLogs    ScraperLog[]
+  companyRatings CompanyRating[]
 
   @@map("insurance_companies")
 }
@@ -124,33 +175,42 @@ model Quote {
   guestEmail    String?
   insuranceType InsuranceType
   status        QuoteStatus   @default(PENDING)
+  assignedTo    String?       // Admin/Broker'a atama
+  priority      QuotePriority @default(MEDIUM)
+  followUpDate  DateTime?     // Takip tarihi
   formData      Json
   accessToken   String?       @unique
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
-  
-  user          User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
-  responses     QuoteResponse[]
-  policies      Policy[]
+
+  user      User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  assignedUser User?        @relation("AssignedQuotes", fields: [assignedTo], references: [id], onDelete: SetNull)
+  responses QuoteResponse[]
+  policies  Policy[]
+  notes     QuoteNote[]
+  tasks     QuoteTask[]
 
   @@index([userId])
+  @@index([assignedTo])
+  @@index([status])
+  @@index([priority])
   @@index([accessToken])
   @@index([createdAt])
   @@map("quotes")
 }
 
 model QuoteResponse {
-  id                String            @id @default(cuid())
-  quoteId           String
-  companyId         String
-  price             Decimal           @db.Decimal(10, 2)
-  currency          String            @default("TRY")
-  coverageDetails   Json?
-  responseData      Json?
-  scrapedAt         DateTime          @default(now())
-  
-  quote             Quote             @relation(fields: [quoteId], references: [id], onDelete: Cascade)
-  company           InsuranceCompany  @relation(fields: [companyId], references: [id])
+  id              String   @id @default(cuid())
+  quoteId         String
+  companyId       String
+  price           Decimal  @db.Decimal(10, 2)
+  currency        String   @default("TRY")
+  coverageDetails Json?
+  responseData    Json?
+  scrapedAt       DateTime @default(now())
+
+  quote   Quote            @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  company InsuranceCompany @relation(fields: [companyId], references: [id])
 
   @@index([quoteId])
   @@index([companyId])
@@ -158,27 +218,33 @@ model QuoteResponse {
 }
 
 model Policy {
-  id              String        @id @default(cuid())
+  id              String         @id @default(cuid())
   userId          String
   quoteId         String
   companyId       String
-  policyNumber    String?       @unique
+  policyNumber    String?        @unique
   insuranceType   InsuranceType
-  status          PolicyStatus  @default(PENDING)
-  premium         Decimal       @db.Decimal(10, 2)
-  currency        String        @default("TRY")
+  status          PolicyStatus   @default(PENDING)
+  premium         Decimal        @db.Decimal(10, 2)
+  currency        String         @default("TRY")
   startDate       DateTime?
   endDate         DateTime?
+  renewalStatus   RenewalStatus? @default(NOT_DUE)
+  renewalReminded Boolean        @default(false)
+  renewedPolicyId String?        @unique // Yenilenen poliçe ID'si
   policyData      Json
   pdfUrl          String?
-  paymentReceived Boolean       @default(false)
-  paymentAmount   Decimal?      @db.Decimal(10, 2)
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  
-  user            User             @relation(fields: [userId], references: [id])
-  quote           Quote            @relation(fields: [quoteId], references: [id])
-  company         InsuranceCompany @relation(fields: [companyId], references: [id])
+  paymentReceived Boolean        @default(false)
+  paymentAmount   Decimal?       @db.Decimal(10, 2)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  user           User             @relation(fields: [userId], references: [id])
+  quote          Quote            @relation(fields: [quoteId], references: [id])
+  company        InsuranceCompany @relation(fields: [companyId], references: [id])
+  referrals      Referral[]
+  commissions    Commission[]
+  companyRatings CompanyRating[]
 
   @@index([userId])
   @@index([quoteId])
@@ -187,18 +253,143 @@ model Policy {
 }
 
 model ScraperLog {
-  id              String          @id @default(cuid())
-  companyId       String
-  insuranceType   InsuranceType
-  status          ScraperStatus
-  duration        Int?
-  errorMessage    String?
-  metadata        Json?
-  createdAt       DateTime        @default(now())
-  
-  company         InsuranceCompany @relation(fields: [companyId], references: [id])
+  id            String        @id @default(cuid())
+  companyId     String
+  insuranceType InsuranceType
+  status        ScraperStatus
+  duration      Int?
+  errorMessage  String?
+  metadata      Json?
+  createdAt     DateTime      @default(now())
+
+  company InsuranceCompany @relation(fields: [companyId], references: [id])
 
   @@index([companyId])
   @@index([createdAt])
   @@map("scraper_logs")
+}
+
+model Referral {
+  id             String         @id @default(cuid())
+  referrerId     String
+  referredUserId String
+  referralCode   String
+  status         ReferralStatus @default(PENDING)
+  commissionRate Decimal        @default(5.00) @db.Decimal(5, 2) // percentage
+  firstPolicyId  String?        @unique
+  completedAt    DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  referrer     User         @relation("ReferrerUser", fields: [referrerId], references: [id])
+  referredUser User         @relation("ReferredUser", fields: [referredUserId], references: [id])
+  firstPolicy  Policy?      @relation(fields: [firstPolicyId], references: [id])
+  commissions  Commission[]
+
+  @@unique([referrerId, referredUserId])
+  @@index([referralCode])
+  @@index([status])
+  @@map("referrals")
+}
+
+model Commission {
+  id         String           @id @default(cuid())
+  userId     String
+  referralId String?
+  policyId   String
+  amount     Decimal          @db.Decimal(10, 2)
+  currency   String           @default("TRY")
+  status     CommissionStatus @default(PENDING)
+  note       String?
+  approvedBy String?
+  approvedAt DateTime?
+  paidAt     DateTime?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id])
+  referral Referral? @relation(fields: [referralId], references: [id])
+  policy   Policy    @relation(fields: [policyId], references: [id])
+
+  @@index([userId])
+  @@index([referralId])
+  @@index([policyId])
+  @@index([status])
+  @@map("commissions")
+}
+
+model CompanyRating {
+  id            String   @id @default(cuid())
+  userId        String
+  companyId     String
+  policyId      String?
+  rating        Int // 1-5 stars
+  comment       String?
+  serviceRating Int? // 1-5
+  priceRating   Int? // 1-5
+  speedRating   Int? // 1-5
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user    User             @relation(fields: [userId], references: [id])
+  company InsuranceCompany @relation(fields: [companyId], references: [id])
+  policy  Policy?          @relation(fields: [policyId], references: [id])
+
+  @@unique([userId, companyId, policyId])
+  @@index([companyId])
+  @@index([rating])
+  @@map("company_ratings")
+}
+
+// Quote Note Model - Teklif notları
+model QuoteNote {
+  id        String   @id @default(cuid())
+  quoteId   String
+  userId    String
+  content   String   @db.Text
+  isInternal Boolean @default(true) // İç not mu, müşteri görebilir mi?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  quote Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([quoteId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("quote_notes")
+}
+
+// Quote Task Model - Teklif görevleri
+model QuoteTask {
+  id          String         @id @default(cuid())
+  quoteId     String
+  title       String
+  description String?        @db.Text
+  status      TaskStatus     @default(PENDING)
+  priority    QuotePriority  @default(MEDIUM)
+  dueDate     DateTime?
+  createdBy   String
+  assignedTo  String?
+  completedAt DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  quote        Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  creator      User  @relation("CreatedTasks", fields: [createdBy], references: [id], onDelete: Cascade)
+  assignedUser User? @relation("AssignedTasks", fields: [assignedTo], references: [id], onDelete: SetNull)
+
+  @@index([quoteId])
+  @@index([createdBy])
+  @@index([assignedTo])
+  @@index([status])
+  @@index([dueDate])
+  @@map("quote_tasks")
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
 }

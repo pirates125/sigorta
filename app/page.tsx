@@ -15,17 +15,80 @@ import {
   CheckCircle,
   Clock,
   TrendingDown,
+  FileText,
+  User,
+  Users,
 } from "lucide-react";
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { LogoutButton } from "@/components/LogoutButton";
+import { formatCurrency, formatDateTime } from "@/lib/utils";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const session = await auth();
+
+  // Giriş yapmış kullanıcının son tekliflerini al
+  let recentQuotes: any[] = [];
+  if (session?.user?.id) {
+    recentQuotes = await prisma.quote.findMany({
+      where: {
+        userId: session.user.id,
+      },
+      include: {
+        responses: {
+          include: {
+            company: true,
+          },
+          orderBy: {
+            price: "asc",
+          },
+          take: 1,
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      take: 5,
+    });
+  }
+
+  const insuranceTypeLabels = {
+    TRAFFIC: "Trafik",
+    KASKO: "Kasko",
+    DASK: "DASK",
+    HEALTH: "Sağlık",
+  };
+
+  const statusLabels: Record<string, { label: string; color: string }> = {
+    DRAFT: { label: "Taslak", color: "text-gray-600" },
+    PENDING: { label: "Bekliyor", color: "text-yellow-600" },
+    PROCESSING: { label: "İşleniyor", color: "text-blue-600" },
+    COMPLETED: { label: "Tamamlandı", color: "text-green-600" },
+    CONTACTED: { label: "İletişimde", color: "text-purple-600" },
+    QUOTED: { label: "Teklif Sunuldu", color: "text-indigo-600" },
+    WON: { label: "Kazanıldı", color: "text-emerald-600" },
+    LOST: { label: "Kaybedildi", color: "text-red-600" },
+    FAILED: { label: "Başarısız", color: "text-red-600" },
+  };
   return (
     <div className="min-h-screen">
       {/* Header */}
       <header className="border-b">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <Shield className="h-8 w-8 text-primary" />
-            <span className="text-2xl font-bold">Sigorta Acentesi</span>
+            <Shield className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
+            <span className="text-lg sm:text-2xl font-bold">
+              <span className="hidden sm:inline">Sigorta Acentesi</span>
+              <span className="sm:hidden">Sigorta</span>
+            </span>
           </div>
           <nav className="hidden md:flex items-center space-x-6">
             <Link
@@ -47,19 +110,48 @@ export default function HomePage() {
               İletişim
             </Link>
           </nav>
-          <div className="flex items-center space-x-2">
-            <Link href="/auth/login">
-              <Button variant="ghost">Giriş Yap</Button>
-            </Link>
-            <Link href="/auth/register">
-              <Button>Kayıt Ol</Button>
-            </Link>
+          <div className="flex items-center gap-2">
+            {session?.user ? (
+              <>
+                <span className="text-sm text-muted-foreground hidden lg:inline">
+                  Hoş geldiniz, {session.user.name}
+                </span>
+                <Link href="/referrals">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="hidden md:flex"
+                  >
+                    <Users className="h-4 w-4 md:mr-2" />
+                    <span className="hidden md:inline">Arkadaş Davet Et</span>
+                  </Button>
+                </Link>
+                <Link href="/dashboard">
+                  <Button variant="outline" size="sm">
+                    <User className="h-4 w-4 md:mr-2" />
+                    <span className="hidden sm:inline">Panelim</span>
+                  </Button>
+                </Link>
+                <LogoutButton />
+              </>
+            ) : (
+              <>
+                <Link href="/auth/login">
+                  <Button variant="ghost" size="sm">
+                    Giriş
+                  </Button>
+                </Link>
+                <Link href="/auth/register">
+                  <Button size="sm">Kayıt Ol</Button>
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </header>
 
       {/* Hero Section */}
-      <section className="py-20 bg-gradient-to-b from-primary/10 to-background">
+      <section className="py-20 bg-linear-to-b from-primary/10 to-background">
         <div className="container mx-auto px-4">
           <div className="max-w-3xl mx-auto text-center">
             <h1 className="text-5xl font-bold mb-6">
@@ -244,6 +336,93 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* Recent Quotes - Sadece giriş yapmış kullanıcılar için */}
+      {session?.user && recentQuotes.length > 0 && (
+        <section className="py-16 bg-muted/30">
+          <div className="container mx-auto px-4">
+            <div className="max-w-5xl mx-auto">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-3xl font-bold">Son Tekliflerim</h2>
+                  <p className="text-muted-foreground mt-2">
+                    En son aldığınız fiyat teklifleri
+                  </p>
+                </div>
+                <Link href="/dashboard">
+                  <Button variant="outline">Tümünü Görüntüle</Button>
+                </Link>
+              </div>
+              <Card>
+                <CardContent className="pt-6">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Tarih</TableHead>
+                        <TableHead>Tür</TableHead>
+                        <TableHead>Durum</TableHead>
+                        <TableHead>En İyi Fiyat</TableHead>
+                        <TableHead className="text-right">İşlem</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {recentQuotes.map((quote: any) => (
+                        <TableRow key={quote.id}>
+                          <TableCell className="text-sm">
+                            {formatDateTime(quote.createdAt)}
+                          </TableCell>
+                          <TableCell>
+                            {
+                              insuranceTypeLabels[
+                                quote.insuranceType as keyof typeof insuranceTypeLabels
+                              ]
+                            }
+                          </TableCell>
+                          <TableCell>
+                            <span
+                              className={`text-sm ${
+                                statusLabels[
+                                  quote.status as keyof typeof statusLabels
+                                ].color
+                              }`}
+                            >
+                              {
+                                statusLabels[
+                                  quote.status as keyof typeof statusLabels
+                                ].label
+                              }
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            {quote.responses[0] ? (
+                              <span className="font-medium">
+                                {formatCurrency(
+                                  Number(quote.responses[0].price)
+                                )}
+                              </span>
+                            ) : (
+                              <span className="text-sm text-muted-foreground">
+                                -
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Link href={`/quotes/${quote.id}`}>
+                              <Button size="sm" variant="outline">
+                                Görüntüle
+                              </Button>
+                            </Link>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Footer */}
       <footer className="border-t py-12 bg-muted/50">

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,12 +13,49 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Shield } from "lucide-react";
+import { Shield, Gift } from "lucide-react";
 import { toast } from "sonner";
 
-export default function RegisterPage() {
+function RegisterForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState(false);
+  const [referralCode, setReferralCode] = useState("");
+  const [referralValid, setReferralValid] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const refCode = searchParams.get("ref");
+    if (refCode) {
+      setReferralCode(refCode);
+      validateReferralCode(refCode);
+    }
+  }, [searchParams]);
+
+  async function validateReferralCode(code: string) {
+    if (!code) {
+      setReferralValid(null);
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/referrals/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ referralCode: code }),
+      });
+
+      const data = await response.json();
+      setReferralValid(data.valid);
+
+      if (data.valid) {
+        toast.success("Referans kodu geçerli!", {
+          description: `${data.referrer.name} tarafından davet edildiniz`,
+        });
+      }
+    } catch (error) {
+      console.error("Validate referral error:", error);
+    }
+  }
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -30,6 +67,7 @@ export default function RegisterPage() {
       email: formData.get("email") as string,
       password: formData.get("password") as string,
       confirmPassword: formData.get("confirmPassword") as string,
+      referralCode: referralCode || undefined,
     };
 
     if (data.password !== data.confirmPassword) {
@@ -54,6 +92,7 @@ export default function RegisterPage() {
           name: data.name,
           email: data.email,
           password: data.password,
+          referralCode: data.referralCode,
         }),
       });
 
@@ -79,7 +118,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-primary/10 to-background p-4">
+    <div className="min-h-screen flex items-center justify-center bg-linear-to-b from-primary/10 to-background p-4">
       <div className="w-full max-w-md">
         <div className="flex justify-center mb-8">
           <Link href="/" className="flex items-center space-x-2">
@@ -141,6 +180,51 @@ export default function RegisterPage() {
                   disabled={isLoading}
                 />
               </div>
+
+              {/* Referral Code */}
+              <div className="space-y-2">
+                <Label htmlFor="referralCode">Referans Kodu (Opsiyonel)</Label>
+                <div className="relative">
+                  <Input
+                    id="referralCode"
+                    name="referralCode"
+                    type="text"
+                    placeholder="REF-XXXXXXXX"
+                    value={referralCode}
+                    onChange={(e) => {
+                      setReferralCode(e.target.value.toUpperCase());
+                      if (e.target.value) {
+                        validateReferralCode(e.target.value.toUpperCase());
+                      } else {
+                        setReferralValid(null);
+                      }
+                    }}
+                    disabled={isLoading}
+                    className={
+                      referralValid === true
+                        ? "border-green-500"
+                        : referralValid === false
+                        ? "border-red-500"
+                        : ""
+                    }
+                  />
+                  {referralValid === true && (
+                    <Gift className="absolute right-3 top-2.5 h-5 w-5 text-green-500" />
+                  )}
+                </div>
+                {referralValid === true && (
+                  <p className="text-xs text-green-600">
+                    ✓ Referans kodu geçerli! İlk poliçenizden komisyon
+                    kazanacaksınız.
+                  </p>
+                )}
+                {referralValid === false && (
+                  <p className="text-xs text-red-600">
+                    ✗ Geçersiz referans kodu
+                  </p>
+                )}
+              </div>
+
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? "Kayıt yapılıyor..." : "Kayıt Ol"}
               </Button>
@@ -176,5 +260,13 @@ export default function RegisterPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={<div>Yükleniyor...</div>}>
+      <RegisterForm />
+    </Suspense>
   );
 }
