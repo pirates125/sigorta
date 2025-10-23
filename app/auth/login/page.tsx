@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -30,22 +29,32 @@ export default function LoginPage() {
     const password = formData.get("password") as string;
 
     try {
-      const result = await signIn("credentials", {
-        email,
-        password,
-        redirect: false,
+      // NextAuth v5 callback endpoint'e direkt POST
+      const response = await fetch("/api/auth/callback/credentials", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          password,
+          redirect: false,
+        }),
       });
 
-      if (result?.error) {
-        toast.error("Giriş başarısız", {
-          description: "Email veya şifre hatalı",
-        });
-      } else {
+      const data = await response.json();
+
+      if (response.ok && !data.error) {
         toast.success("Giriş başarılı!");
         router.push("/dashboard");
         router.refresh();
+      } else {
+        toast.error("Giriş başarısız", {
+          description: data.error || "Email veya şifre hatalı",
+        });
       }
     } catch (error) {
+      console.error("Login error:", error);
       toast.error("Bir hata oluştu", {
         description: "Lütfen tekrar deneyin",
       });
