@@ -11,6 +11,7 @@ import { Browser, Page } from "puppeteer";
 import fs from "fs";
 import path from "path";
 import { generateSompoOTP } from "./otp-generator";
+import { getTrafficQuoteNewFlow } from "./sompo-client-new-flow";
 
 // Stealth plugin'i ekle (bot algılamasını aşmak için)
 puppeteer.use(StealthPlugin());
@@ -30,12 +31,26 @@ export class SompoClient {
   };
 
   /**
-   * Browser'ı başlat
+   * Browser'ı başlat (zaten açıksa tekrar açma)
    */
   async initialize(): Promise<void> {
+    // Browser zaten açıksa ve bağlantı varsa, yeniden açma
+    if (this.browser && this.browser.isConnected()) {
+      console.log("♻️ Mevcut browser kullanılıyor (singleton)");
+
+      // Page yoksa veya kapalıysa yeni page aç
+      if (!this.page || this.page.isClosed()) {
+        console.log("📄 Yeni page açılıyor...");
+        this.page = await this.browser.newPage();
+        await this.setupPage();
+      }
+      return;
+    }
+
+    console.log("🚀 Yeni browser başlatılıyor...");
     this.browser = await puppeteer.launch({
       headless: false, // 👀 Chrome'u açık göster
-      slowMo: 100, // Her aksiyonu 100ms yavaşlat (daha iyi görünürlük)
+      slowMo: 50, // 100ms -> 50ms daha hızlı
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
@@ -45,6 +60,14 @@ export class SompoClient {
       ],
     });
     this.page = await this.browser.newPage();
+    await this.setupPage();
+  }
+
+  /**
+   * Page ayarlarını yap (console, error handlers, timeouts)
+   */
+  private async setupPage(): Promise<void> {
+    if (!this.page) return;
 
     // Console log'larını yakala
     this.page.on("console", async (msg) => {
@@ -511,156 +534,47 @@ export class SompoClient {
   }
 
   /**
-   * Trafik sigortası teklifi al
+   * Trafik sigortası teklifi al (YENİ FLOW)
+   * Dashboard -> Yeni İş Teklifi -> Trafik -> Form Doldur -> Teklif Al
    */
   async getTrafficQuote(formData: any, otpCode?: string): Promise<any> {
+    // Browser'ı başlat (singleton - zaten açıksa tekrar açılmaz)
+    await this.initialize();
+
+    // Login kontrolü - zaten login olmuşsa atlıyoruz
     if (!this.isLoggedIn) {
+      console.log("🔐 Login gerekli, giriş yapılıyor...");
       const loginSuccess = await this.login(otpCode);
       if (!loginSuccess) {
         throw new Error("Sompo'ya giriş yapılamadı");
       }
+    } else {
+      console.log("✅ Zaten login olunmuş, direkt teklif alınıyor...");
     }
 
     try {
-      console.log("Trafik sigortası teklifi alınıyor...");
-
-      // Cosmos trafik formu sayfasına git
-      const trafficFormUrl =
-        "https://cosmos.sompojapan.com.tr/?guid=a981427e-83af-425c-bc28-ae8e74f24c98&startupScript=52614B506A16E1209E52C33A2D21DEF5B761124842915AB2C7A856FF04781C07964708F4F864802E7C2C45060EBE983DFC99EBF3861094F0785961AD9170E8473812BCFE3B21EE1A1DA30065819F6D42903D992B8847BADA2AC6C78D6653CCD6F2FC7E435E5B7C517832CE42AB54EC8B1C49448E8E009ED8FC3ABC1DE3B5FDA2CAD419282A53AD595AB826AD059CD0B28FD1D356AE45C5642E4F26A425391DBEB9EC86A7248101AFDB008DF6F91C739EF63931CEF68BA05290C54B7E19E5B82AEE92540763D60FA0DF95098982253DEDDC7D452A47641FEE65CE86FAD237BE2E19FACC8FBFB2D2C4631B1530AD33292EF0C34C1BC0760649F5ABC8A068494E3A3C3227F1813D67F28C40A462121F651E21AE46B22A46CBECF24A82761AA7F61E78B2D841E18E089DD5E9B41907C2DF68F027855B6FA87CB5B894D1074578B549C58ECDF48203D9E521711038AD29AB7A0C89EFAE5673C433B9FE8D2FDCFF7642C0BF8624FA8C41DA85018D236D83CCC4F3740C8C78699EC365619610D06B505179AAD3AACA652477D1E2228CB3167B31D47840AD021C288516CA746EAD6B5E8832EAB25B8B8696D8AE13A881AA5B74B9AC8FA622ACEDA2153FBEC86DCE9AC2B07FE999521C08D467556434CAE3C26339155953B841FA2E8CBDD1662860CD8C0CC952A704E56CDE5A8678CE723A3F7826C3116778E928D3D0463A6D50AD009A82025096684DE5B526068970F4F42CE1C535055FF25310409F0982D84599E16C598715654E747BCEBD1C8974398AE9873E5C0745FE07FD8E42301F61944074CE843A691B4C633E0E076517928A3CBDE2BA78B52754177D7514B7B8CE9BF20BDD618B8A6E25A7779732B0E6C72FC100793D8AAAB6AABCE663CA31870AB678769E8061B7428890D52C5E3874165E4D2E081A";
-      await this.page!.goto(trafficFormUrl, {
-        waitUntil: "networkidle2",
-        timeout: 30000,
-      });
-      await this.screenshot("traffic-form-loaded");
-
-      // 1. TC Kimlik No
-      await this.page!.waitForSelector("#txtIdentityOrTaxNo", {
-        timeout: 10000,
-      });
-      await this.page!.type("#txtIdentityOrTaxNo", formData.driverTCKN, {
-        delay: 50,
-      });
-
-      // 2. Plaka (şehir kodu + plaka)
-      const plateParts = formData.plate.match(/^(\d{2})([A-Z]+)(\d+)$/i);
-      if (plateParts) {
-        await this.page!.type("#txtPlateNoCityNo", plateParts[1], {
-          delay: 50,
-        });
-        await this.page!.type("#txtPlateNo", plateParts[2] + plateParts[3], {
-          delay: 50,
-        });
-      }
-
-      // 3. Checkbox'ları işaretle
-      await this.page!.click("#chkTraffic"); // Trafik sigortası checkbox
-
-      // 4. EGM Sorgula butonuna tıkla (araç bilgilerini çeker)
-      console.log("EGM Sorgula butonu bekleniyor...");
-      await this.page!.waitForSelector("#btnSearchEgm", { timeout: 10000 });
-
-      // Butonun enable olmasını bekle (disabled attribute'u kalkana kadar)
-      await this.page!.waitForFunction(
-        () => {
-          const btn = document.querySelector(
-            "#btnSearchEgm"
-          ) as HTMLImageElement;
-          return btn && !btn.hasAttribute("disabled");
-        },
-        { timeout: 10000 }
+      // Yeni flow ile teklif al (Dashboard -> Yeni İş Teklifi -> Trafik -> Form)
+      const result = await getTrafficQuoteNewFlow(
+        this.page!,
+        formData,
+        this.screenshot.bind(this)
       );
 
-      // JavaScript ile EGM butonuna tıkla
-      await this.page!.evaluate(() => {
-        const btn = document.querySelector("#btnSearchEgm") as HTMLElement;
-        if (btn) btn.click();
-      });
-      console.log("EGM Sorgula butonuna tıklandı (JavaScript click)");
-
-      // EGM sorgulamasının tamamlanmasını bekle
-      await new Promise((resolve) => setTimeout(resolve, 5000));
-      await this.screenshot("after-egm-query");
-
-      // 5. Sigortalı iletişim bilgisi (Cep telefonu seçili olmalı)
-      await this.page!.click("#rblInsuredContactType_0"); // Cep Tel radio button
-
-      // Telefon numarası varsa gir
-      if (formData.phone) {
-        const phoneMatch = formData.phone.match(/^(\d{3})(\d{7})$/);
-        if (phoneMatch) {
-          await this.page!.type("#txtInsuredGsmAreaCode", phoneMatch[1], {
-            delay: 50,
-          });
-          await this.page!.type("#txtInsuredGsmNumber", phoneMatch[2], {
-            delay: 50,
-          });
-        }
-      }
-
-      // 6. Teklif Oluştur butonuna tıkla
-      await this.page!.waitForSelector("#btnProposalCreate", { timeout: 5000 });
-
-      // JavaScript ile tıkla
-      await this.page!.evaluate(() => {
-        const btn = document.querySelector("#btnProposalCreate") as HTMLElement;
-        if (btn) btn.click();
-      });
-      console.log("Teklif oluşturma isteği gönderildi (JavaScript click)...");
-
-      // 7. Teklif sonucunu bekle
-      await this.page!.waitForSelector("#loadedDivTrafficProposal", {
-        visible: true,
-        timeout: 30000,
-      });
-      await this.screenshot("traffic-proposal-loaded");
-
-      // 8. Fiyatı çek
-      const priceText = await this.page!.$eval(
-        "#lblTrafficProposalGrossPremium",
-        (el) => el.textContent || "0"
-      );
-
-      // 9. Teklif numarasını al
-      const proposalNo = await this.page!.$eval(
-        "#lblTrafficProposalStartEndDateOrProposalNo",
-        (el) => el.textContent || ""
-      );
-
-      // 10. Komisyon bilgilerini al
-      const commissionAmount = await this.page!.$eval(
-        "#lblTrafficProposalComissionAmount",
-        (el) => el.textContent || ""
-      ).catch(() => "");
-
-      const commissionRatio = await this.page!.$eval(
-        "#lblTrafficProposalComissionRatio",
-        (el) => el.textContent || ""
-      ).catch(() => "");
-
-      // Fiyatı parse et (örn: "1.234,56 TL" -> 1234.56)
-      const price = parseFloat(
-        priceText
-          .replace(/[^\d,]/g, "")
-          .replace(".", "")
-          .replace(",", ".")
-      );
-
-      console.log(
-        `✅ Teklif alındı! Fiyat: ${price} TL, Teklif No: ${proposalNo}`
-      );
-
-      return {
-        success: true,
-        price: price || 0,
-        reference: proposalNo.trim(),
-        data: {
-          grossPremium: priceText,
-          commissionAmount,
-          commissionRatio,
-        },
-      };
+      return result;
     } catch (error: any) {
       console.error("❌ Sompo teklif hatası:", error.message);
+
+      // Hata session ile ilgiliyse, login flag'i sıfırla
+      if (
+        error.message.includes("login") ||
+        error.message.includes("session")
+      ) {
+        console.log(
+          "⚠️ Session sorunu tespit edildi, login flag sıfırlanıyor..."
+        );
+        this.isLoggedIn = false;
+      }
+
       await this.screenshot("traffic-quote-error");
       throw error;
     }

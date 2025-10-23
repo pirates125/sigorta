@@ -26,6 +26,8 @@ import { useRouter } from "next/navigation";
 
 const trafficInsuranceSchema = z.object({
   plate: z.string().min(7, "Geçerli bir plaka girin").max(10),
+  registrationCode: z.string().min(1, "Tescil seri kod girin (örn: ABC)").max(3, "Maksimum 3 karakter"),
+  registrationNumber: z.string().min(1, "Tescil numarası girin").max(19, "Maksimum 19 karakter"),
   vehicleType: z.string().min(1, "Araç tipi seçin"),
   vehicleBrand: z.string().min(1, "Marka girin"),
   vehicleModel: z.string().min(1, "Model girin"),
@@ -42,6 +44,7 @@ const trafficInsuranceSchema = z.object({
   hasClaimHistory: z.boolean(),
   claimCount: z.number().min(0).optional(),
   email: z.string().email("Geçerli bir email girin").optional(),
+  phone: z.string().optional(), // Sompo TC'den otomatik çeker
 });
 
 type TrafficInsuranceFormData = z.infer<typeof trafficInsuranceSchema>;
@@ -137,6 +140,38 @@ export default function TrafficInsuranceForm() {
               {errors.plate && (
                 <p className="text-sm text-destructive">
                   {errors.plate.message}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="registrationCode">Tescil Seri Kod *</Label>
+              <Input
+                id="registrationCode"
+                {...register("registrationCode")}
+                placeholder="ABC (3 karakter)"
+                maxLength={3}
+                disabled={isLoading}
+              />
+              {errors.registrationCode && (
+                <p className="text-sm text-destructive">
+                  {errors.registrationCode.message}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="registrationNumber">Tescil/ASBIS No *</Label>
+              <Input
+                id="registrationNumber"
+                {...register("registrationNumber")}
+                placeholder="12345678901234567890"
+                maxLength={19}
+                disabled={isLoading}
+              />
+              {errors.registrationNumber && (
+                <p className="text-sm text-destructive">
+                  {errors.registrationNumber.message}
                 </p>
               )}
             </div>
@@ -312,7 +347,7 @@ export default function TrafficInsuranceForm() {
               )}
             </div>
 
-            <div className="space-y-2 md:col-span-2">
+            <div className="space-y-2">
               <Label htmlFor="email">Email (Sonuçlar için)</Label>
               <Input
                 id="email"
@@ -324,6 +359,26 @@ export default function TrafficInsuranceForm() {
               {errors.email && (
                 <p className="text-sm text-destructive">
                   {errors.email.message}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="phone">Telefon (Opsiyonel - TC'den otomatik alınır)</Label>
+              <Input
+                id="phone"
+                type="tel"
+                {...register("phone")}
+                placeholder="5XXXXXXXXX (boş bırakılabilir)"
+                maxLength={10}
+                disabled={isLoading}
+              />
+              <p className="text-xs text-muted-foreground">
+                Sompo TC Kimlik'ten otomatik çeker, boş bırakabilirsiniz
+              </p>
+              {errors.phone && (
+                <p className="text-sm text-destructive">
+                  {errors.phone.message}
                 </p>
               )}
             </div>

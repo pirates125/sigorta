@@ -1,6 +1,6 @@
 import { BaseScraper } from "./base";
 import { ScraperResult } from "@/types";
-import { SompoClient } from "../sompo-client";
+import { getSompoClient } from "../sompo-client";
 
 export class SompoScraper extends BaseScraper {
   constructor() {
@@ -8,7 +8,8 @@ export class SompoScraper extends BaseScraper {
   }
 
   async scrape(insuranceType: string, formData: any): Promise<ScraperResult> {
-    const client = new SompoClient();
+    // Singleton instance'ı kullan - browser bir kez açılır, kapanmaz
+    const client = getSompoClient();
 
     try {
       // Sompo için web scraping yapıyoruz (Puppeteer ile + OTP desteği)
@@ -32,15 +33,14 @@ export class SompoScraper extends BaseScraper {
         companyName: "Sompo Sigorta",
         price: result.price || 0,
         currency: result.currency || "TRY",
-        coverageDetails: result.coverageDetails,
-        responseData: result.responseData,
+        coverageDetails: result.coverageDetails || result.details,
+        responseData: result,
         success: true,
         duration: result.duration || 0,
       };
     } catch (error: any) {
       throw new Error(`Sompo scraping hatası: ${error.message}`);
-    } finally {
-      await client.cleanup();
     }
+    // ❌ cleanup() KALDIRILDI - Browser açık kalacak, bir sonraki çağrıda kullanılacak
   }
 }

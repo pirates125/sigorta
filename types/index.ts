@@ -3,6 +3,8 @@ import { InsuranceType } from "@prisma/client";
 // Trafik Sigortası Form
 export interface TrafficInsuranceFormData {
   plate: string;
+  registrationCode: string; // Tescil Seri Kod (ABC - 3 karakter)
+  registrationNumber: string; // Tescil/ASBIS No (19 karakter)
   vehicleType: string;
   vehicleBrand: string;
   vehicleModel: string;
@@ -16,6 +18,8 @@ export interface TrafficInsuranceFormData {
   previousInsurance?: string;
   hasClaimHistory: boolean;
   claimCount?: number;
+  email?: string;
+  phone?: string; // Telefon (5XXXXXXXXX - 10 karakter)
 }
 
 // Kasko Form

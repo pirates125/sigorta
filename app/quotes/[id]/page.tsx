@@ -233,7 +233,8 @@ export default async function QuoteDetailPage(props: PageProps) {
                         Teklifleriniz Hazır!
                       </h3>
                       <p className="text-sm text-orange-800 dark:text-orange-200 mb-3">
-                        Poliçe oluşturmak ve tekliflerinizi kaydetmek için ücretsiz hesap oluşturun.
+                        Poliçe oluşturmak ve tekliflerinizi kaydetmek için
+                        ücretsiz hesap oluşturun.
                       </p>
                       <div className="flex gap-2">
                         <Link href="/auth/register">
@@ -340,6 +341,7 @@ export default async function QuoteDetailPage(props: PageProps) {
                               </TableCell>
                               <TableCell>
                                 <div className="text-xs space-y-1">
+                                  {/* Skor detayları */}
                                   <div className="flex justify-between">
                                     <span className="text-muted-foreground">
                                       Fiyat:
@@ -372,6 +374,57 @@ export default async function QuoteDetailPage(props: PageProps) {
                                       {response.scores.speed}/100
                                     </span>
                                   </div>
+
+                                  {/* Sompo özel bilgiler */}
+                                  {response.company.code === "SOMPO" &&
+                                    response.responseData &&
+                                    typeof response.responseData === "object" &&
+                                    "details" in response.responseData && (
+                                      <div className="mt-2 pt-2 border-t space-y-1">
+                                        {(response.responseData as any).details
+                                          ?.proposalNo && (
+                                          <div className="flex justify-between">
+                                            <span className="text-muted-foreground">
+                                              Teklif No:
+                                            </span>
+                                            <span className="font-medium text-blue-600">
+                                              {
+                                                (response.responseData as any)
+                                                  .details.proposalNo
+                                              }
+                                            </span>
+                                          </div>
+                                        )}
+                                        {(response.responseData as any).details
+                                          ?.commission && (
+                                          <div className="flex justify-between">
+                                            <span className="text-muted-foreground">
+                                              Komisyon:
+                                            </span>
+                                            <span className="font-medium text-green-600">
+                                              {
+                                                (response.responseData as any)
+                                                  .details.commission
+                                              }
+                                            </span>
+                                          </div>
+                                        )}
+                                        {(response.responseData as any).details
+                                          ?.installment && (
+                                          <div className="flex justify-between">
+                                            <span className="text-muted-foreground">
+                                              Taksit:
+                                            </span>
+                                            <span className="font-medium">
+                                              {
+                                                (response.responseData as any)
+                                                  .details.installment
+                                              }
+                                            </span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
                                 </div>
                               </TableCell>
                               <TableCell className="text-right">
@@ -512,7 +565,7 @@ export default async function QuoteDetailPage(props: PageProps) {
             {/* Admin/Broker Tools */}
             {isAdminOrBroker && (
               <div className="grid gap-6 md:grid-cols-2 mt-6">
-                <QuoteWorkflowPanel 
+                <QuoteWorkflowPanel
                   quote={{
                     ...quote,
                     responses: quote.responses.map((response) => ({
@@ -520,11 +573,13 @@ export default async function QuoteDetailPage(props: PageProps) {
                       price: Number(response.price),
                       company: {
                         ...response.company,
-                        rating: response.company.rating ? Number(response.company.rating) : null,
+                        rating: response.company.rating
+                          ? Number(response.company.rating)
+                          : null,
                       },
                     })),
-                  }} 
-                  adminUsers={adminUsers} 
+                  }}
+                  adminUsers={adminUsers}
                 />
                 <QuoteNotes quoteId={quote.id} isAdminOrBroker={true} />
               </div>
