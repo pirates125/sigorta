@@ -6,24 +6,43 @@
 import { Page } from "puppeteer";
 
 export async function getTrafficQuoteNewFlow(
-  page: Page,
+  initialPage: Page,
   formData: any,
   screenshot: (name: string) => Promise<void>
 ): Promise<any> {
+  let currentPage = initialPage; // Aktif page'i takip et
+
+  // Console logları kapat (performans için)
+  currentPage.on("console", () => {});
+  currentPage.on("pageerror", () => {});
+  currentPage.on("requestfailed", () => {});
+
+  // Screenshot wrapper - her zaman güncel page'i kullan
+  const takeScreenshot = async (name: string) => {
+    try {
+      await currentPage.screenshot({
+        path: `./screenshots/sompo-${name}-${Date.now()}.png`,
+        fullPage: true,
+      });
+    } catch (error) {
+      console.log(`⚠️ Screenshot alınamadı: ${name}`);
+    }
+  };
+
   try {
     console.log("🚗 Trafik sigortası teklifi alınıyor...");
 
     // 1. Mevcut URL'i logla
-    const currentUrl = page.url();
+    const currentUrl = currentPage.url();
     console.log("📍 Başlangıç URL:", currentUrl);
 
-    await screenshot("01-start");
+    await takeScreenshot("01-start");
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
     // 2. "YENİ İŞ TEKLİFİ" butonunu bul ve tıkla
     console.log("📋 YENİ İŞ TEKLİFİ butonu aranıyor...");
 
-    const newProposalClicked = await page.evaluate(() => {
+    const newProposalClicked = await currentPage.evaluate(() => {
       const buttons = Array.from(
         document.querySelectorAll("button, a, [role='button']")
       );
@@ -47,13 +66,13 @@ export async function getTrafficQuoteNewFlow(
 
     console.log("✅ YENİ İŞ TEKLİFİ tıklandı");
     await new Promise((resolve) => setTimeout(resolve, 1500));
-    console.log("📍 URL:", page.url());
-    await screenshot("02-new-proposal-clicked");
+    console.log("📍 URL:", currentPage.url());
+    await takeScreenshot("02-new-proposal-clicked");
 
     // 3. "Trafik" seçeneğini bul ve tıkla
     console.log("🚦 Trafik seçeneği aranıyor...");
 
-    const trafficClicked = await page.evaluate(() => {
+    const trafficClicked = await currentPage.evaluate(() => {
       // job__name class'ı
       const jobDivs = Array.from(
         document.querySelectorAll(".job__name, [class*='job']")
@@ -88,13 +107,24 @@ export async function getTrafficQuoteNewFlow(
 
     console.log("✅ Trafik tıklandı");
     await new Promise((resolve) => setTimeout(resolve, 1500));
-    console.log("📍 URL:", page.url());
-    await screenshot("03-traffic-clicked");
+    console.log("📍 URL:", currentPage.url());
+    await takeScreenshot("03-traffic-clicked");
 
-    // 4. "TEKLİF AL" butonunu bul ve tıkla
+    // 4. "TEKLİF AL" butonunu bul ve tıkla - YENİ SEKME AÇILACAK
     console.log("📝 TEKLİF AL butonu aranıyor...");
 
-    const quoteButtonClicked = await page.evaluate(() => {
+    // Yeni sekme açılmasını dinle
+    const newPagePromise = new Promise<any>((resolve) => {
+      currentPage.browser().once("targetcreated", async (target) => {
+        const newPage = await target.page();
+        if (newPage) {
+          console.log("🆕 Yeni sekme yakalandı!");
+          resolve(newPage);
+        }
+      });
+    });
+
+    const quoteButtonClicked = await currentPage.evaluate(() => {
       const buttons = Array.from(document.querySelectorAll("button, a"));
       for (const btn of buttons) {
         const text = btn.textContent?.toUpperCase() || "";
@@ -111,13 +141,45 @@ export async function getTrafficQuoteNewFlow(
     }
 
     console.log("✅ TEKLİF AL tıklandı");
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    console.log("📍 URL:", page.url());
-    await screenshot("04-form-opened");
+
+    // Yeni sekmeyi bekle ve kullan
+    console.log("⏳ Yeni sekme bekleniyor...");
+    try {
+      const newPage = (await Promise.race([
+        newPagePromise,
+        new Promise((_, reject) =>
+          setTimeout(
+            () => reject(new Error("Yeni sekme açılmadı (timeout)")),
+            10000
+          )
+        ),
+      ])) as Page;
+
+      console.log("✅ Yeni sekmeye geçildi");
+      console.log("📍 Yeni URL:", newPage.url());
+
+      // Yeni sayfanın DOM yüklenmesini bekle
+      await newPage
+        .waitForNavigation({ waitUntil: "networkidle2", timeout: 15000 })
+        .catch(() => {
+          console.log("⚠️ Navigation timeout, devam ediliyor...");
+        });
+
+      // Artık yeni page'i kullan
+      currentPage = newPage;
+      console.log("📍 Form URL:", currentPage.url());
+      await takeScreenshot("04-form-opened");
+    } catch (error) {
+      // Yeni sekme açılmadıysa mevcut sayfayı kullan
+      console.log("ℹ️ Yeni sekme açılmadı, mevcut sayfada devam ediliyor");
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      console.log("📍 URL:", currentPage.url());
+      await takeScreenshot("04-form-opened");
+    }
 
     // 5. Checkbox'ları ayarla
     console.log("🔲 Checkbox'lar ayarlanıyor...");
-    await page.evaluate(() => {
+    await currentPage.evaluate(() => {
       const kaskoCheckbox = document.querySelector(
         "#chkCasco"
       ) as HTMLInputElement;
@@ -133,9 +195,13 @@ export async function getTrafficQuoteNewFlow(
       }
     });
 
+    console.log("✅ Checkbox'lar ayarlandı");
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await takeScreenshot("05-checkboxes-set");
+
     // 6. TC Kimlik No gir
     console.log("🆔 TC Kimlik giriliyor...");
-    const tcFilled = await page.evaluate((tcNo) => {
+    const tcFilled = await currentPage.evaluate((tcNo) => {
       const inputs = document.querySelectorAll("input");
       for (const input of inputs) {
         const id = input.getAttribute("id")?.toLowerCase() || "";
@@ -166,8 +232,8 @@ export async function getTrafficQuoteNewFlow(
     }
 
     console.log("✅ TC:", formData.driverTCKN);
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    await screenshot("05-tc-filled");
+    await new Promise((resolve) => setTimeout(resolve, 2000)); // Otomatik doldurma için bekle
+    await takeScreenshot("06-tc-filled");
 
     // 7. Plaka gir
     console.log("🚘 Plaka giriliyor...");
@@ -176,7 +242,7 @@ export async function getTrafficQuoteNewFlow(
       throw new Error("Geçersiz plaka: " + formData.plate);
     }
 
-    await page.evaluate(
+    await currentPage.evaluate(
       (cityCode, plateNo) => {
         const cityInput = document.querySelector(
           "#txtPlateNoCityNo"
@@ -200,9 +266,12 @@ export async function getTrafficQuoteNewFlow(
       plateParts[2] + plateParts[3]
     );
     console.log("✅ Plaka:", formData.plate);
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await takeScreenshot("07-plate-filled");
 
     // 8. Tescil bilgileri
-    await page.evaluate(
+    console.log("📋 Tescil bilgileri giriliyor...");
+    await currentPage.evaluate(
       (regCode, regNumber) => {
         const regCodeInput = document.querySelector(
           "#txtEGMNoCode"
@@ -210,6 +279,7 @@ export async function getTrafficQuoteNewFlow(
         if (regCodeInput && regCode) {
           regCodeInput.value = regCode;
           regCodeInput.dispatchEvent(new Event("input", { bubbles: true }));
+          regCodeInput.dispatchEvent(new Event("change", { bubbles: true }));
         }
 
         const regNoInput = document.querySelector(
@@ -218,44 +288,84 @@ export async function getTrafficQuoteNewFlow(
         if (regNoInput && regNumber) {
           regNoInput.value = regNumber;
           regNoInput.dispatchEvent(new Event("input", { bubbles: true }));
+          regNoInput.dispatchEvent(new Event("change", { bubbles: true }));
         }
       },
       formData.registrationCode || "",
       formData.registrationNumber || ""
     );
     console.log("✅ Tescil bilgileri girildi");
-    await screenshot("06-all-inputs-filled");
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await takeScreenshot("08-registration-filled");
 
     // 9. EGM Sorgula
-    console.log("🔍 EGM Sorgula...");
+    console.log("🔍 EGM Sorgula butonuna tıklanıyor...");
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    await page.evaluate(() => {
+    const egmClicked = await currentPage.evaluate(() => {
       const btn = document.querySelector("#btnSearchEgm") as HTMLElement;
-      if (btn) btn.click();
+      if (btn) {
+        btn.click();
+        return true;
+      }
+      return false;
     });
+
+    if (!egmClicked) {
+      throw new Error("EGM Sorgula butonu bulunamadı");
+    }
 
     console.log("✅ EGM Sorgula tıklandı");
-    await new Promise((resolve) => setTimeout(resolve, 3000));
-    await screenshot("07-egm-queried");
+    await new Promise((resolve) => setTimeout(resolve, 3000)); // EGM sonucu için bekle
+    await takeScreenshot("09-egm-queried");
 
-    // 10. Teklif Oluştur
-    console.log("💼 Teklif Oluştur...");
-    await page.evaluate(() => {
-      const btn = document.querySelector("#btnProposalCreate") as HTMLElement;
-      if (btn) btn.click();
+    // 10. Adres ve telefon otomatik dolduruldu mu kontrol et
+    console.log("📞 Adres ve telefon bilgileri kontrol ediliyor...");
+    const autoFilled = await currentPage.evaluate(() => {
+      const addressInput = document.querySelector(
+        "#txtCustAddress"
+      ) as HTMLTextAreaElement;
+      const phoneInput = document.querySelector(
+        "input[id*='phone' i], input[id*='telefon' i]"
+      ) as HTMLInputElement;
+
+      return {
+        address: addressInput?.value || "",
+        phone: phoneInput?.value || "",
+      };
     });
 
-    console.log("✅ Teklif Oluştur tıklandı");
+    console.log("  📍 Adres:", autoFilled.address ? "✅ Dolduruldu" : "⚠️ Boş");
+    console.log("  📞 Telefon:", autoFilled.phone ? "✅ Dolduruldu" : "⚠️ Boş");
+    await takeScreenshot("10-autofilled-checked");
 
-    // 11. Sonuç için akıllı bekle
+    // 11. Teklif Oluştur
+    console.log("💼 Teklif Oluştur butonuna tıklanıyor...");
+    const proposalCreateClicked = await currentPage.evaluate(() => {
+      const btn = document.querySelector("#btnProposalCreate") as HTMLElement;
+      if (btn) {
+        btn.click();
+        return true;
+      }
+      return false;
+    });
+
+    if (!proposalCreateClicked) {
+      throw new Error("Teklif Oluştur butonu bulunamadı");
+    }
+
+    console.log("✅ Teklif oluşturma isteği gönderildi");
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await takeScreenshot("11-proposal-create-clicked");
+
+    // 12. Sonuç için akıllı bekle (maksimum 30 saniye)
     console.log("⏳ Teklif sonucu bekleniyor...");
     let proposalFound = false;
 
     for (let i = 0; i < 60; i++) {
       await new Promise((resolve) => setTimeout(resolve, 500));
 
-      proposalFound = await page.evaluate(() => {
+      proposalFound = !!(await currentPage.evaluate(() => {
         const cascoDiv = document.querySelector("#loadedDivCascoProposal2");
         const trafficDiv = document.querySelector(
           "#loadedDivTrafficProposalAlternative"
@@ -265,7 +375,7 @@ export async function getTrafficQuoteNewFlow(
           (cascoDiv && (cascoDiv as HTMLElement).style.display !== "none") ||
           (trafficDiv && (trafficDiv as HTMLElement).style.display !== "none")
         );
-      });
+      }));
 
       if (proposalFound) {
         console.log("✅ Teklif hazır! (" + i * 0.5 + " saniye)");
@@ -277,10 +387,15 @@ export async function getTrafficQuoteNewFlow(
       }
     }
 
-    await screenshot("08-proposal-result");
+    if (!proposalFound) {
+      console.log("⚠️ Teklif sonucu 30 saniyede hazırlanamadı");
+    }
 
-    // 12. Sonuçları çek
-    const result = await page.evaluate(() => {
+    await takeScreenshot("12-proposal-result");
+
+    // 13. Sonuçları çek (Kasko veya Trafik Alternative'den)
+    const result = await currentPage.evaluate(() => {
+      // Önce Kasko sonucu kontrol et
       const cascoDiv = document.querySelector("#loadedDivCascoProposal2");
       if (cascoDiv && (cascoDiv as HTMLElement).style.display !== "none") {
         return {
@@ -303,6 +418,7 @@ export async function getTrafficQuoteNewFlow(
         };
       }
 
+      // Trafik Alternative sonucu kontrol et
       const trafficDiv = document.querySelector(
         "#loadedDivTrafficProposalAlternative"
       );
@@ -344,12 +460,12 @@ export async function getTrafficQuoteNewFlow(
     });
 
     if (!result.found) {
-      console.log("📍 Son URL:", page.url());
+      console.log("📍 Son URL:", currentPage.url());
       throw new Error("Teklif sonucu bulunamadı");
     }
 
     console.log("✅ Sonuç:", result.type, result.price);
-    console.log("📍 Son URL:", page.url());
+    console.log("📍 Son URL:", currentPage.url());
 
     // Parse price
     const priceMatch = result.price.match(/[\d.,]+/);
@@ -382,7 +498,7 @@ export async function getTrafficQuoteNewFlow(
     };
   } catch (error: any) {
     console.error("❌ Hata:", error.message);
-    await screenshot("error");
+    await takeScreenshot("error");
     throw error;
   }
 }

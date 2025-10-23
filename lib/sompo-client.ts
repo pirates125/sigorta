@@ -69,17 +69,10 @@ export class SompoClient {
   private async setupPage(): Promise<void> {
     if (!this.page) return;
 
-    // Console log'larını yakala
-    this.page.on("console", async (msg) => {
-      const msgType = msg.type();
-      const msgText = msg.text();
-      console.log("[Browser " + msgType + "]", msgText);
-    });
-
-    // Page error'larını yakala
-    this.page.on("pageerror", (error) => {
-      console.error("[Page Error]", (error as Error).message);
-    });
+    // Console log'larını kapat (performans için)
+    this.page.on("console", () => {}); // Tüm console loglarını sustur
+    this.page.on("pageerror", () => {}); // Page errorları sustur
+    this.page.on("requestfailed", () => {}); // Request failed loglarını sustur
 
     // User agent ayarla
     await this.page.setUserAgent(
