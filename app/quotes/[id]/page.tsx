@@ -512,7 +512,20 @@ export default async function QuoteDetailPage(props: PageProps) {
             {/* Admin/Broker Tools */}
             {isAdminOrBroker && (
               <div className="grid gap-6 md:grid-cols-2 mt-6">
-                <QuoteWorkflowPanel quote={quote} adminUsers={adminUsers} />
+                <QuoteWorkflowPanel 
+                  quote={{
+                    ...quote,
+                    responses: quote.responses.map((response) => ({
+                      ...response,
+                      price: Number(response.price),
+                      company: {
+                        ...response.company,
+                        rating: response.company.rating ? Number(response.company.rating) : null,
+                      },
+                    })),
+                  }} 
+                  adminUsers={adminUsers} 
+                />
                 <QuoteNotes quoteId={quote.id} isAdminOrBroker={true} />
               </div>
             )}

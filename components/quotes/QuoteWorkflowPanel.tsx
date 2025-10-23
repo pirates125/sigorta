@@ -142,12 +142,12 @@ export function QuoteWorkflowPanel({
             <User className="h-3 w-3" />
             Atanan Kişi
           </Label>
-          <Select value={assignedTo} onValueChange={setAssignedTo}>
+          <Select value={assignedTo || "UNASSIGNED"} onValueChange={(value) => setAssignedTo(value === "UNASSIGNED" ? null : value)}>
             <SelectTrigger>
               <SelectValue placeholder="Seçiniz..." />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Atanmamış</SelectItem>
+              <SelectItem value="UNASSIGNED">Atanmamış</SelectItem>
               {adminUsers.map((user) => (
                 <SelectItem key={user.id} value={user.id}>
                   {user.name} ({user.role})
