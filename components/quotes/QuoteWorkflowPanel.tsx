@@ -61,7 +61,7 @@ export function QuoteWorkflowPanel({
   const [updating, setUpdating] = useState(false);
   const [status, setStatus] = useState(quote.status);
   const [priority, setPriority] = useState(quote.priority || "MEDIUM");
-  const [assignedTo, setAssignedTo] = useState(quote.assignedTo || "");
+  const [assignedTo, setAssignedTo] = useState(quote.assignedTo || "UNASSIGNED");
   const [followUpDate, setFollowUpDate] = useState(
     quote.followUpDate
       ? new Date(quote.followUpDate).toISOString().split("T")[0]
@@ -77,7 +77,7 @@ export function QuoteWorkflowPanel({
         body: JSON.stringify({
           status,
           priority,
-          assignedTo: assignedTo || null,
+          assignedTo: assignedTo === "UNASSIGNED" ? null : assignedTo,
           followUpDate: followUpDate || null,
         }),
       });
@@ -142,7 +142,7 @@ export function QuoteWorkflowPanel({
             <User className="h-3 w-3" />
             Atanan Kişi
           </Label>
-          <Select value={assignedTo || "UNASSIGNED"} onValueChange={(value) => setAssignedTo(value === "UNASSIGNED" ? null : value)}>
+          <Select value={assignedTo} onValueChange={setAssignedTo}>
             <SelectTrigger>
               <SelectValue placeholder="Seçiniz..." />
             </SelectTrigger>
