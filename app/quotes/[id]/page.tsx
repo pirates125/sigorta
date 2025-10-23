@@ -55,6 +55,7 @@ export default async function QuoteDetailPage(props: PageProps) {
             select: {
               id: true,
               name: true,
+              code: true,
               logo: true,
               rating: true,
               coverageScore: true,
@@ -376,7 +377,7 @@ export default async function QuoteDetailPage(props: PageProps) {
                                   </div>
 
                                   {/* Sompo özel bilgiler */}
-                                  {response.company.code === "SOMPO" &&
+                                  {response.company.name === "Sompo Sigorta" &&
                                     response.responseData &&
                                     typeof response.responseData === "object" &&
                                     "details" in response.responseData && (
