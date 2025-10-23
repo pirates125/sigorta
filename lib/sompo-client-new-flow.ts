@@ -156,19 +156,25 @@ export async function getTrafficQuoteNewFlow(
       const handleNewTarget = async (target: any) => {
         const newPage = await target.page();
         if (newPage) {
+          // URL'nin yüklenmesini bekle
+          await new Promise((resolve) => setTimeout(resolve, 1000));
           const url = newPage.url();
           console.log("🆕 Yeni sekme yakalandı:", url);
 
+          // about:blank ise kapat ve devam et
+          if (url === "about:blank") {
+            console.log("❌ about:blank sekmesi kapatılıyor...");
+            newPage.close();
+            return;
+          }
+
           // Sadece Sompo URL'si olan sekmeyi kabul et
-          if (
-            url.includes("somposigorta.com.tr") &&
-            !url.includes("about:blank")
-          ) {
+          if (url.includes("somposigorta.com.tr")) {
             console.log("✅ Sompo sekmesi bulundu!");
             currentPage.browser().off("targetcreated", handleNewTarget); // Event listener'ı kaldır
             resolve(newPage);
           } else {
-            console.log("⚠️ Geçersiz sekme, devam ediliyor...");
+            console.log("⚠️ Geçersiz sekme kapatılıyor:", url);
             newPage.close(); // Gereksiz sekmeyi kapat
           }
         }
@@ -223,10 +229,26 @@ export async function getTrafficQuoteNewFlow(
       console.log("📍 Form URL:", currentPage.url());
       await takeScreenshot("04-form-opened");
     } catch (error) {
-      // Yeni sekme açılmadıysa mevcut sayfayı kullan
+      // Yeni sekme açılmadıysa mevcut sayfada devam et
       console.log("ℹ️ Yeni sekme açılmadı, mevcut sayfada devam ediliyor");
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      console.log("📍 URL:", currentPage.url());
+      console.log("📍 Mevcut URL:", currentPage.url());
+
+      // Mevcut sayfada form var mı kontrol et
+      const hasForm = await currentPage.evaluate(() => {
+        return !!(
+          document.querySelector("#txtIdentityOrTaxNo") ||
+          document.querySelector("#chkTraffic") ||
+          document.querySelector("#chkCasco")
+        );
+      });
+
+      if (hasForm) {
+        console.log("✅ Form mevcut sayfada bulundu!");
+      } else {
+        console.log("⚠️ Form bulunamadı, sayfa yenileniyor...");
+        await currentPage.reload({ waitUntil: "networkidle2" });
+      }
+
       await takeScreenshot("04-form-opened");
     }
 
