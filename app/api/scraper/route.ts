@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { SompoScraper } from "@/lib/scrapers/sompo";
+import { SompoQuoteProcessor } from "@/lib/processors/sompo-quote-processor";
 import { AnadoluScraper } from "@/lib/scrapers/anadolu";
 import { AkScraper } from "@/lib/scrapers/ak";
 import { AxaScraper } from "@/lib/scrapers/axa";
@@ -48,16 +49,42 @@ export async function POST(req: Request) {
     const result = await scraper.run(insuranceType, formData);
     const duration = Date.now() - startTime;
 
+    // Sompo için özel işleme
+    let processedResult = result;
+    let processedData: any = null;
+
+    if (companyCode === "SOMPO" && result.success) {
+      try {
+        processedData = SompoQuoteProcessor.processQuoteResult(result);
+        console.log(
+          `[${companyCode}] Teklif işlendi: ${processedData.pricing.combined.totalWithTax} TL`
+        );
+
+        // Processed data'yı ScraperResult formatına dönüştür
+        processedResult = {
+          ...result,
+          coverageDetails: processedData.coverage,
+          responseData: {
+            ...result.responseData,
+            processedData: processedData,
+          },
+        };
+      } catch (processError: any) {
+        console.error(`[${companyCode}] İşleme hatası:`, processError.message);
+        // İşleme hatası olsa bile ham sonucu kullan
+      }
+    }
+
     // Sonucu kaydet
-    if (result.success && result.price > 0) {
+    if (processedResult.success && processedResult.price > 0) {
       await prisma.quoteResponse.create({
         data: {
           quoteId,
           companyId,
-          price: result.price,
-          currency: result.currency,
-          coverageDetails: result.coverageDetails,
-          responseData: result.responseData,
+          price: processedResult.price,
+          currency: processedResult.currency,
+          coverageDetails: processedResult.coverageDetails,
+          responseData: processedResult.responseData,
         },
       });
 
@@ -68,7 +95,12 @@ export async function POST(req: Request) {
           insuranceType: insuranceType as any,
           status: "SUCCESS",
           duration,
-          metadata: JSON.parse(JSON.stringify({ result })),
+          metadata: JSON.parse(
+            JSON.stringify({
+              result: processedResult,
+              processingTime: new Date().toISOString(),
+            })
+          ),
         },
       });
     } else {
@@ -79,17 +111,23 @@ export async function POST(req: Request) {
           insuranceType: insuranceType as any,
           status: "FAILED",
           duration,
-          errorMessage: result.error,
-          metadata: JSON.parse(JSON.stringify({ result })),
+          errorMessage: processedResult.error,
+          metadata: JSON.parse(JSON.stringify({ result: processedResult })),
         },
       });
     }
 
     return NextResponse.json(
       {
-        success: result.success,
-        companyName: result.companyName,
-        price: result.price,
+        success: processedResult.success,
+        companyName: processedResult.companyName,
+        price: processedResult.price,
+        currency: processedResult.currency,
+        coverageDetails: processedResult.coverageDetails,
+        responseData: processedResult.responseData,
+        duration,
+        processed: companyCode === "SOMPO", // Sompo için işlenmiş veri olduğunu belirt
+        processedData: processedData, // İşlenmiş veri (sadece Sompo için)
       },
       { status: 200 }
     );

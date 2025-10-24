@@ -1,16 +1,48 @@
-### iş teklifi input = <button data-v-84f46f20="" class="p-button p-component p-button-fluid" type="button" data-pc-name="button" data-p-disabled="false" pc337="" data-pc-section="root"><span data-v-84f46f20="" class="d-flex justify-content-center align-items-center text-primary rounded-pill bg-white bi bi-magic" style="width: 2rem; height: 2rem;"></span>YENİ İŞ TEKLİFİ<span data-v-84f46f20="" class="bi bi-arrow-right-short fs-5 pe-2 ms-auto"></span></button>
+### Scrapper algoritması - logici
 
-### iş teklifi butonundan sonra trafik = <div class="job__name">Trafik</div>
+### her bir selectorlara ilgili alanlar girilecek veya tıklanılacak en sonunda form bilgisi teklif olarak dönecek ve front endimize basılacak
 
-### altında iş teklifi al butonu = <button class="p-button p-component p-button-outlined p-button-sm" type="button" aria-label="TEKLİF AL" data-pc-name="button" data-p-disabled="false" pc712="" data-pc-section="root"><!----><span class="p-button-label" data-pc-section="label">TEKLİF AL</span><!----></button>
+### önce bu form doldurulsun ve giriş yapılsın
 
-### açılan url de yazdığımız bilgiler ilgili alanlara girilecek formu buna göre düzenle
+<form data-gtm-form-interact-id="0"><div class="mb-3"><div class="p-iconfield" data-pc-name="iconfield" pc49="" data-pc-section="root"><span class="p-inputicon bi bi-person fs-6" data-pc-name="inputicon" pc50="" data-pc-section="root"></span><input type="text" class="p-inputtext p-component p-filled p-inputtext-fluid" placeholder="Kullanıcı Adı" autocomplete="username" maxlength="10" data-pc-name="inputtext" pc51="" data-pc-section="root" value="BULUT1" data-gtm-form-interact-field-id="0"></div></div><div class="mb-3"><div class="p-iconfield" data-pc-name="iconfield" pc52="" data-pc-section="root"><span class="p-inputicon bi bi-lock fs-6" data-pc-name="inputicon" pc53="" data-pc-section="root" style="z-index: 1;"></span><div class="p-password p-component p-inputwrapper p-inputwrapper-filled p-password-fluid" autocomplete="current-password" data-pc-name="password" pc54="" data-pc-section="root"><input type="password" class="p-inputtext p-component p-filled p-inputtext-fluid p-password-input" aria-controls="pv_id_8_overlay" aria-expanded="false" aria-haspopup="true" placeholder="Parola" data-pc-name="pcinputtext" data-pc-extend="inputtext" pc55="" data-pc-section="root" value="EEsigorta.2828" style="padding-left: calc((var(--p-form-field-padding-x)* 2) + var(--p-icon-size)); padding-right: var(--p-form-field-padding-x);" data-gtm-form-interact-field-id="1"><!----><svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" class="p-icon p-password-toggle-mask-icon p-password-unmask-icon" aria-hidden="true" data-pc-section="unmaskicon"><path fill-rule="evenodd" clip-rule="evenodd" d="M0.0535499 7.25213C0.208567 7.59162 2.40413 12.4 7 12.4C11.5959 12.4 13.7914 7.59162 13.9465 7.25213C13.9487 7.2471 13.9506 7.24304 13.952 7.24001C13.9837 7.16396 14 7.08239 14 7.00001C14 6.91762 13.9837 6.83605 13.952 6.76001C13.9506 6.75697 13.9487 6.75292 13.9465 6.74788C13.7914 6.4084 11.5959 1.60001 7 1.60001C2.40413 1.60001 0.208567 6.40839 0.0535499 6.74788C0.0512519 6.75292 0.0494023 6.75697 0.048 6.76001C0.0163137 6.83605 0 6.91762 0 7.00001C0 7.08239 0.0163137 7.16396 0.048 7.24001C0.0494023 7.24304 0.0512519 7.2471 0.0535499 7.25213ZM7 11.2C3.664 11.2 1.736 7.92001 1.264 7.00001C1.736 6.08001 3.664 2.80001 7 2.80001C10.336 2.80001 12.264 6.08001 12.736 7.00001C12.264 7.92001 10.336 11.2 7 11.2ZM5.55551 9.16182C5.98308 9.44751 6.48576 9.6 7 9.6C7.68891 9.59789 8.349 9.32328 8.83614 8.83614C9.32328 8.349 9.59789 7.68891 9.59999 7C9.59999 6.48576 9.44751 5.98308 9.16182 5.55551C8.87612 5.12794 8.47006 4.7947 7.99497 4.59791C7.51988 4.40112 6.99711 4.34963 6.49276 4.44995C5.98841 4.55027 5.52513 4.7979 5.16152 5.16152C4.7979 5.52513 4.55027 5.98841 4.44995 6.49276C4.34963 6.99711 4.40112 7.51988 4.59791 7.99497C4.7947 8.47006 5.12794 8.87612 5.55551 9.16182ZM6.2222 5.83594C6.45243 5.6821 6.7231 5.6 7 5.6C7.37065 5.6021 7.72553 5.75027 7.98762 6.01237C8.24972 6.27446 8.39789 6.62934 8.4 7C8.4 7.27689 8.31789 7.54756 8.16405 7.77779C8.01022 8.00802 7.79157 8.18746 7.53575 8.29343C7.27994 8.39939 6.99844 8.42711 6.72687 8.37309C6.4553 8.31908 6.20584 8.18574 6.01005 7.98994C5.81425 7.79415 5.68091 7.54469 5.6269 7.27312C5.57288 7.00155 5.6006 6.72006 5.70656 6.46424C5.81253 6.20842 5.99197 5.98977 6.2222 5.83594Z" fill="currentColor"></path></svg><span class="p-hidden-accessible" aria-live="polite" data-pc-section="hiddenaccesible" data-p-hidden-accessible="true">Şifre Giriniz</span></div></div></div><!----><button class="p-button p-component p-button-fluid mb-3" type="submit" aria-label="GİRİŞ YAP" data-pc-name="button" data-p-disabled="false" pc57="" data-pc-section="root"><!----><span class="p-button-label" data-pc-section="label">GİRİŞ YAP</span><!----></button><a href="/dashboard/forgot-password" class="d-block text-center">Parolamı unuttum</a></form>
 
-### trafik checkboxu seçilecek = <input id="chkTraffic" type="checkbox">
+### Sonra google otp validasyon sayfası çıkacak secretten 6 haneli kod üretip gir
 
-### kasko checkboxu kaldırılacak = <input id="chkCasco" type="checkbox" checked="checked">
+<div class="p-inputotp p-component" data-pc-name="inputotp" pc62="" data-pc-section="root"><input type="text" class="p-inputtext p-component p-inputtext-lg p-inputfield-lg p-variant-filled p-inputotp-input" inputmode="text" data-pc-name="pcinputtext" data-pc-extend="inputtext" pc63="" data-pc-section="root"><input type="text" class="p-inputtext p-component p-inputtext-lg p-inputfield-lg p-variant-filled p-inputotp-input" inputmode="text" data-pc-name="pcinputtext" data-pc-extend="inputtext" pc64="" data-pc-section="root"><input type="text" class="p-inputtext p-component p-inputtext-lg p-inputfield-lg p-variant-filled p-inputotp-input" inputmode="text" data-pc-name="pcinputtext" data-pc-extend="inputtext" pc65="" data-pc-section="root"><input type="text" class="p-inputtext p-component p-inputtext-lg p-inputfield-lg p-variant-filled p-inputotp-input" inputmode="text" data-pc-name="pcinputtext" data-pc-extend="inputtext" pc66="" data-pc-section="root"><input type="text" class="p-inputtext p-component p-inputtext-lg p-inputfield-lg p-variant-filled p-inputotp-input" inputmode="text" data-pc-name="pcinputtext" data-pc-extend="inputtext" pc67="" data-pc-section="root"><input type="text" class="p-inputtext p-component p-inputtext-lg p-inputfield-lg p-variant-filled p-inputotp-input" inputmode="text" data-pc-name="pcinputtext" data-pc-extend="inputtext" pc68="" data-pc-section="root"></div>
 
-EGM bilgileri formu sitemizden uygun bilgiler ile doldurulacak buradan al = <div class="inputLeftContent" id="divCascoPlateAndEgmControls">
+### Dashboarda yönlendirecek ama url / bot olacak bunu aşmak için dinamik selector arayışına gir Ana Sayfayı Yükle - ANA SAYFAYI YÜKLE butonu ve tıkla sonra dashboarda giricek
+
+### çıkarsa kapat
+
+<div class="info-box"><div class="info-box__count">3</div><div class="info-box__icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 48 48" class=""><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="m8 8l32 32M8 40L40 8"></path></svg></div>KAPAT</div>
+
+### z index > 50 olanları kapat HAYIR | X gibi selector ara
+
+### bu butona bas
+
+<button data-v-84f46f20="" class="p-button p-component p-button-fluid" type="button" data-pc-name="button" data-p-disabled="false" pc337="" data-pc-section="root"><span data-v-84f46f20="" class="d-flex justify-content-center align-items-center text-primary rounded-pill bg-white bi bi-magic" style="width: 2rem; height: 2rem;"></span>YENİ İŞ TEKLİFİ<span data-v-84f46f20="" class="bi bi-arrow-right-short fs-5 pe-2 ms-auto"></span></button>
+
+### iş teklifi butonundan sonra modal açılacak burada içerisinen teklif al butonuna bas
+
+<div class="p-card-body" data-pc-section="body"><!----><div class="p-card-content" data-pc-section="content"><div class="job__content"><div class="job__name">Trafik</div><img class="job__image" src="https://cdn2.somposigorta.com.tr/shared-ejento/ProductImages/trafik.svg"><div class="d-flex align-items-center justify-content-between gap-2 w-100"><button class="job__favorite" type="button" data-pd-tooltip="true"><span class="pi pi-star"></span></button><button class="p-button p-component p-button-outlined p-button-sm" type="button" aria-label="TEKLİF AL" data-pc-name="button" data-p-disabled="false" pc177="" data-pc-section="root"><!----><span class="p-button-label" data-pc-section="label">TEKLİF AL</span><!----></button></div></div></div><!----></div>
+
+### Sonra yeni bir sayfa açılacak dikkat !
+
+### trafik checkboxu seçilecek
+
+<input id="chkTraffic" type="checkbox">
+
+### checkboxa tıkla
+
+<input id="chkCasco" type="checkbox" checked="checked"> ## checked olmamlı tıklandıktan sonra kontrol et
+
+### checkbox tıkla checked olmalı bu trafik
+
+<input id="chkTraffic" type="checkbox" checked="checked">
+
+### Formdan gelenleri ilgile yerlere doldur
+
+<div class="inputLeftContent" id="divCascoPlateAndEgmControls">
 
 <div class="inputRow">
 <div class="leftCell">
@@ -56,13 +88,21 @@ EGM bilgileri formu sitemizden uygun bilgiler ile doldurulacak buradan al = <div
             </div>
         </div>
 
-### Sonra tc kimlik girilecek = <input id="txtIdentityOrTaxNo" type="text" maxlength="11" tabindex="1" style="width: 96px">
+### tc kimlik girilecek
 
-### buna tıklanılacak ve adres bilgisi otomatik doldurulacak =<textarea id="txtCustAddress" style="width: 190px; height: auto; min-height: 40px; overflow: visible" readonly="readonly" rows="4" cols="4"></textarea>
+<input id="txtIdentityOrTaxNo" type="text" maxlength="11" tabindex="1" style="width: 96px">
 
-### son adımda teklif al butonuna tıklanılacak = <a id="btnProposalCreate" tabindex="13" style="cursor: pointer;">Teklif Oluştur</a>
+### buna tıklanılacak ve adres bilgisi otomatik doldurulacak
 
-### bilgileri buradan çek = <div class="proposalContainer">
+<textarea id="txtCustAddress" style="width: 190px; height: auto; min-height: 40px; overflow: visible" readonly="readonly" rows="4" cols="4"></textarea>
+
+### son adımda teklif al butonuna tıklanılacak
+
+<a id="btnProposalCreate" tabindex="13" style="cursor: pointer;">Teklif Oluştur</a>
+
+### bilgileri buradan çek
+
+<div class="proposalContainer">
 
         <div class="proposalLeftContent">
             <div class="proposalHeader" style="height: 25px;">
@@ -270,7 +310,9 @@ EGM bilgileri formu sitemizden uygun bilgiler ile doldurulacak buradan al = <div
         </div>
     </div>
 
-#### Burası boşsa buradan da çekebilirsin = <div class="proposalContainer">
+#### Burası boşsa buradan da çekebilirsin
+
+<div class="proposalContainer">
 
         <div class="proposalLeftContent">
             <div class="proposalContentRowTrafficAlter">
