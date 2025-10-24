@@ -155,7 +155,7 @@ export class SompoScraper extends BaseScraper {
       if (closeTourButton) {
         await closeTourButton.click();
         console.log("[Sompo] Close Tour butonu tıklandı");
-        await this.waitForTimeout(1000);
+        await this.waitForTimeout(2000);
       }
 
       // 2. ANA SAYFAYI YÜKLE butonuna tıkla
@@ -166,12 +166,12 @@ export class SompoScraper extends BaseScraper {
       if (loadHomeButton) {
         await loadHomeButton.click();
         console.log("[Sompo] ANA SAYFAYI YÜKLE butonu tıklandı");
-        await this.waitForTimeout(500);
+        await this.waitForTimeout(2000);
       }
     }
 
     // Dashboard yüklenmesini bekle
-    await this.waitForTimeout(500);
+    await this.waitForTimeout(2000);
 
     // Close Tour butonuna tıkla
     console.log("[Sompo] Close Tour butonu aranıyor...");
@@ -181,7 +181,7 @@ export class SompoScraper extends BaseScraper {
     if (closeTourButton) {
       await closeTourButton.click();
       console.log("[Sompo] Close Tour butonu tıklandı");
-      await this.waitForTimeout(500);
+      await this.waitForTimeout(2000);
     }
   }
 
@@ -193,17 +193,17 @@ export class SompoScraper extends BaseScraper {
 
     // "YENİ İŞ TEKLİFİ" butonunu ara
     console.log("[Sompo] yeni iş teklifi butonu tıklanıyor...");
-    const closeTourButton = await this.page!.$(
+    const closeisButton = await this.page!.$(
       'button[aria-label="YENİ İŞ TEKLİFİ"]'
     );
-    if (closeTourButton) {
-      await closeTourButton.click();
+    if (closeisButton) {
+      await closeisButton.click();
       console.log("[Sompo]yeni iş teklifi butonu tıklandı");
-      await this.waitForTimeout(200);
+      await this.waitForTimeout(2000);
     }
 
     // Modal açılmasını bekle
-    await this.waitForTimeout(500);
+    await this.waitForTimeout(2000);
   }
 
   /**
@@ -212,15 +212,7 @@ export class SompoScraper extends BaseScraper {
   private async selectTrafficOption(): Promise<void> {
     console.log("[Sompo] Trafik seçeneği seçiliyor...");
 
-    // Trafik kartını bul ve "TEKLİF AL" butonuna tıkla
-    const trafficCard = await this.page!.$(
-      '.job__content:has(.job__name:has-text("Trafik"))'
-    );
-    if (!trafficCard) {
-      throw new Error("Trafik seçeneği bulunamadı!");
-    }
-
-    const teklifAlButton = await trafficCard.$('button:has-text("TEKLİF AL")');
+    const teklifAlButton = await this.page!.$('button:has-text("TEKLİF AL")');
     if (!teklifAlButton) {
       throw new Error("TEKLİF AL butonu bulunamadı!");
     }
