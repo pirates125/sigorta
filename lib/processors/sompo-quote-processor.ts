@@ -247,7 +247,8 @@ export class SompoQuoteProcessor {
     };
 
     const totalRiskScore = Object.values(riskFactors).reduce(
-      (sum, factor) => sum + (typeof factor === "number" ? factor : 0),
+      (sum: number, factor: number | boolean) =>
+        sum + (typeof factor === "number" ? factor : 0),
       0
     );
 
