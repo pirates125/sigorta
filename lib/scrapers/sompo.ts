@@ -55,22 +55,19 @@ export class SompoScraper extends BaseScraper {
       // 4. Dashboard'a geçiş (bot detection bypass)
       await this.navigateToDashboard();
 
-      // 5. Modal'ları kapat
-      await this.closeModals();
-
-      // 6. Yeni iş teklifi butonuna tıkla
+      // 5. Yeni iş teklifi butonuna tıkla
       await this.clickNewQuoteButton();
 
-      // 7. Trafik seçeneğini seç
+      // 6. Trafik seçeneğini seç
       await this.selectTrafficOption();
 
-      // 8. Form doldur
+      // 7. Form doldur
       await this.fillTrafficForm(formData);
 
-      // 9. Teklif oluştur
+      // 8. Teklif oluştur
       await this.createQuote();
 
-      // 10. Sonuçları çek
+      // 9. Sonuçları çek
       const result = await this.extractQuoteResults();
 
       console.log(
@@ -143,70 +140,38 @@ export class SompoScraper extends BaseScraper {
   private async navigateToDashboard(): Promise<void> {
     console.log("[Sompo] Dashboard'a geçiş yapılıyor...");
 
-    // URL'de /bot varsa ana sayfayı yükle butonunu ara
+    // URL'de /bot varsa bot detection bypass işlemi
     const currentUrl = this.page!.url();
     if (currentUrl.includes("/bot")) {
       console.log(
-        "[Sompo] Bot detection tespit edildi, ana sayfa yükleniyor..."
+        "[Sompo] Bot detection tespit edildi, bypass işlemi başlatılıyor..."
       );
 
-      // "Ana Sayfayı Yükle" veya "ANA SAYFAYI YÜKLE" butonunu ara
+      // 1. Close Tour butonuna tıkla
+      console.log("[Sompo] Close Tour butonu aranıyor...");
+      const closeTourButton = await this.page!.$(
+        'button[aria-label="Close Tour"]'
+      );
+      if (closeTourButton) {
+        await closeTourButton.click();
+        console.log("[Sompo] Close Tour butonu tıklandı");
+        await this.waitForTimeout(1000);
+      }
+
+      // 2. ANA SAYFAYI YÜKLE butonuna tıkla
+      console.log("[Sompo] ANA SAYFAYI YÜKLE butonu aranıyor...");
       const loadHomeButton = await this.page!.$(
-        'button:has-text("Ana Sayfayı Yükle"), button:has-text("ANA SAYFAYI YÜKLE")'
+        'button[aria-label="ANA SAYFAYI YÜKLE"]'
       );
-
       if (loadHomeButton) {
         await loadHomeButton.click();
+        console.log("[Sompo] ANA SAYFAYI YÜKLE butonu tıklandı");
         await this.waitForTimeout(3000);
       }
     }
 
     // Dashboard yüklenmesini bekle
-    await this.waitForTimeout(2000);
-  }
-
-  /**
-   * Modal'ları kapat
-   */
-  private async closeModals(): Promise<void> {
-    console.log("[Sompo] Modal'lar kapatılıyor...");
-
-    // Z-index > 50 olan modal'ları kapat
-    const modals = await this.page!.$$('div[style*="z-index"]');
-
-    for (const modal of modals) {
-      const style = await this.page!.evaluate(
-        (el) => el.getAttribute("style"),
-        modal
-      );
-      const zIndexMatch = style?.match(/z-index:\s*(\d+)/);
-
-      if (zIndexMatch && parseInt(zIndexMatch[1]) > 50) {
-        // KAPAT, HAYIR, X butonlarını ara
-        const closeButtons = await modal.$$(
-          'button:has-text("KAPAT"), button:has-text("HAYIR"), button:has-text("X"), [aria-label="close"]'
-        );
-
-        for (const button of closeButtons) {
-          try {
-            await button.click();
-            await this.waitForTimeout(500);
-          } catch (e) {
-            // Buton tıklanamıyorsa devam et
-          }
-        }
-      }
-    }
-
-    // Info box'ları kapat
-    const infoBoxes = await this.page!.$$(".info-box");
-    for (const box of infoBoxes) {
-      const closeButton = await box.$('div:has-text("KAPAT")');
-      if (closeButton) {
-        await closeButton.click();
-        await this.waitForTimeout(500);
-      }
-    }
+    await this.waitForTimeout(500);
   }
 
   /**

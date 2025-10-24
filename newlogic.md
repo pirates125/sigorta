@@ -411,3 +411,9 @@
 
 
     </div>
+
+###
+
+<button aria-label="Close Tour" class="shepherd-cancel-icon" type="button"><span aria-hidden="true">×</span></button>
+
+<button data-v-eb3fc95c="" class="p-button p-component" type="button" aria-label="ANA SAYFAYI YÜKLE" data-pc-name="button" data-p-disabled="false" pc39="" data-pc-section="root"><!----><span class="p-button-label" data-pc-section="label">ANA SAYFAYI YÜKLE</span><!----></button>
