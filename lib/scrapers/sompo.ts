@@ -306,22 +306,21 @@ export class SompoScraper extends BaseScraper {
       // Trafik teklifi sonuçlarını çek
       const trafficResults = await this.extractTrafficResults();
 
-      // En iyi fiyatı seç (matematiksel yaklaşım)
-      const bestPrice = this.calculateBestPrice(cascoResults, trafficResults);
-      const bestResult =
-        bestPrice === cascoResults.price ? cascoResults : trafficResults;
+      // Fiyatları al (matematik işlemi yok, sadece selector'dan çekilen veriler)
+      const cascoPrice = cascoResults.price || 0;
+      const trafficPrice = trafficResults.price || 0;
 
       return {
         companyCode: this.companyCode,
         companyName: this.companyName,
-        price: bestPrice,
+        price: cascoPrice + trafficPrice, // Basit toplama
         currency: "TRY",
         success: true,
         duration: 0, // Bu değer run() metodunda set edilecek
         coverageDetails: {
           casco: cascoResults,
           traffic: trafficResults,
-          combined: bestPrice === cascoResults.price + trafficResults.price,
+          combined: true,
         },
         responseData: {
           casco: cascoResults,
@@ -410,22 +409,6 @@ export class SompoScraper extends BaseScraper {
       commissionRatio,
       grossPremium,
     };
-  }
-
-  /**
-   * En iyi fiyatı hesapla (matematiksel yaklaşım)
-   */
-  private calculateBestPrice(cascoResults: any, trafficResults: any): number {
-    const cascoPrice = cascoResults.price || 0;
-    const trafficPrice = trafficResults.price || 0;
-
-    // Eğer her ikisi de mevcutsa, toplam fiyatı döndür
-    if (cascoPrice > 0 && trafficPrice > 0) {
-      return cascoPrice + trafficPrice;
-    }
-
-    // Sadece biri mevcutsa, onu döndür
-    return Math.max(cascoPrice, trafficPrice);
   }
 
   /**
