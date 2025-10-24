@@ -172,6 +172,11 @@ export class SompoScraper extends BaseScraper {
 
     // Dashboard yüklenmesini bekle
     await this.waitForTimeout(500);
+
+    // TODO: Bu 30 saniyelik bekleme kaldırılacak - selector almak için eklendi
+    console.log("[Sompo] Selector almak için 30 saniye bekleniyor...");
+    await this.waitForTimeout(30000); // 30 saniye
+    console.log("[Sompo] Selector bekleme süresi tamamlandı");
   }
 
   /**
