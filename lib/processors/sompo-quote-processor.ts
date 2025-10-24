@@ -246,7 +246,7 @@ export class SompoQuoteProcessor {
       vehicleAge: 0, // Form'dan gelecek
     };
 
-    const totalRiskScore = Object.values(riskFactors).reduce(
+    const totalRiskScore: number = Object.values(riskFactors).reduce(
       (sum: number, factor: number | boolean) =>
         sum + (typeof factor === "number" ? factor : 0),
       0
