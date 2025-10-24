@@ -124,14 +124,14 @@ export class SompoScraper extends BaseScraper {
 
     for (let i = 0; i < Math.min(otpCode.length, otpInputs.length); i++) {
       await otpInputs[i].type(otpCode[i]);
-      await this.waitForTimeout(200); // Her karakter arasında kısa bekleme
+      await this.waitForTimeout(100); // Her karakter arasında kısa bekleme
     }
 
     // Enter tuşuna bas (otomatik submit)
     await this.page!.keyboard.press("Enter");
 
     // OTP doğrulamasının tamamlanmasını bekle
-    await this.waitForTimeout(5000);
+    await this.waitForTimeout(100);
   }
 
   /**
@@ -166,7 +166,7 @@ export class SompoScraper extends BaseScraper {
       if (loadHomeButton) {
         await loadHomeButton.click();
         console.log("[Sompo] ANA SAYFAYI YÜKLE butonu tıklandı");
-        await this.waitForTimeout(3000);
+        await this.waitForTimeout(500);
       }
     }
 
@@ -181,7 +181,7 @@ export class SompoScraper extends BaseScraper {
     if (closeTourButton) {
       await closeTourButton.click();
       console.log("[Sompo] Close Tour butonu tıklandı");
-      await this.waitForTimeout(1000);
+      await this.waitForTimeout(500);
     }
   }
 
@@ -192,13 +192,18 @@ export class SompoScraper extends BaseScraper {
     console.log("[Sompo] Yeni iş teklifi butonuna tıklanıyor...");
 
     // "YENİ İŞ TEKLİFİ" butonunu ara
-    await this.page!.waitForSelector('button:has-text("YENİ İŞ TEKLİFİ")', {
-      timeout: 10000,
-    });
-    await this.clickButton('button:has-text("YENİ İŞ TEKLİFİ")');
+    console.log("[Sompo] yeni iş teklifi butonu tıklanıyor...");
+    const closeTourButton = await this.page!.$(
+      'button[aria-label="YENİ İŞ TEKLİFİ"]'
+    );
+    if (closeTourButton) {
+      await closeTourButton.click();
+      console.log("[Sompo]yeni iş teklifi butonu tıklandı");
+      await this.waitForTimeout(200);
+    }
 
     // Modal açılmasını bekle
-    await this.waitForTimeout(2000);
+    await this.waitForTimeout(500);
   }
 
   /**
