@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { SompoScraper } from "@/lib/scrapers/sompo";
-import { SompoQuoteProcessor } from "@/lib/processors/sompo-quote-processor";
 import { TrafficInsuranceFormData } from "@/types";
 
 /**
@@ -58,28 +57,25 @@ export async function POST(req: Request) {
         );
       }
 
-      // Sonuçları işle
-      const processedResult = SompoQuoteProcessor.processQuoteResult(rawResult);
+      // Ham sonucu döndür (matematik işlemi yok)
       const totalDuration = Date.now() - startTime;
 
       console.log(
-        `[Sompo API] Teklif başarıyla işlendi - Süre: ${totalDuration}ms`
+        `[Sompo API] Teklif başarıyla alındı - Süre: ${totalDuration}ms`
       );
 
-      // Detaylı yanıt döndür
+      // Ham veri yanıtı döndür
       return NextResponse.json({
         success: true,
         companyCode: "SOMPO",
         companyName: "Sompo Sigorta",
         quoteId,
-        pricing: processedResult.pricing,
-        coverage: processedResult.coverage,
-        riskAnalysis: processedResult.riskAnalysis,
-        commission: processedResult.commission,
-        savings: processedResult.pricing.savings,
-        rawData: processedResult.rawData,
+        price: rawResult.price,
+        currency: rawResult.currency,
+        coverageDetails: rawResult.coverageDetails,
+        responseData: rawResult.responseData,
+        duration: totalDuration,
         metadata: {
-          ...processedResult.metadata,
           scrapingDuration,
           totalDuration,
           timestamp: new Date().toISOString(),

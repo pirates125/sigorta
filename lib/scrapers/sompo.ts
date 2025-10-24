@@ -173,10 +173,16 @@ export class SompoScraper extends BaseScraper {
     // Dashboard yüklenmesini bekle
     await this.waitForTimeout(500);
 
-    // TODO: Bu 30 saniyelik bekleme kaldırılacak - selector almak için eklendi
-    console.log("[Sompo] Selector almak için 30 saniye bekleniyor...");
-    await this.waitForTimeout(30000); // 30 saniye
-    console.log("[Sompo] Selector bekleme süresi tamamlandı");
+    // Close Tour butonuna tıkla
+    console.log("[Sompo] Close Tour butonu aranıyor...");
+    const closeTourButton = await this.page!.$(
+      'button[aria-label="Close Tour"]'
+    );
+    if (closeTourButton) {
+      await closeTourButton.click();
+      console.log("[Sompo] Close Tour butonu tıklandı");
+      await this.waitForTimeout(1000);
+    }
   }
 
   /**
