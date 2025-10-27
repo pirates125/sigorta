@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { signIn } from "@/lib/auth";
 
+export const runtime = 'nodejs'; // Vercel Edge'de çalışmaması için
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -10,8 +12,8 @@ export async function POST(req: Request) {
 
     if (!email || !password) {
       return NextResponse.json(
-        { error: "Email ve şifre gerekli" },
-        { status: 400 }
+          { error: "Email ve şifre gerekli" },
+          { status: 400 }
       );
     }
 
@@ -22,8 +24,8 @@ export async function POST(req: Request) {
 
     if (!user || !user.password) {
       return NextResponse.json(
-        { error: "Email veya şifre hatalı" },
-        { status: 401 }
+          { error: "Email veya şifre hatalı" },
+          { status: 401 }
       );
     }
 
@@ -32,16 +34,16 @@ export async function POST(req: Request) {
 
     if (!passwordMatch) {
       return NextResponse.json(
-        { error: "Email veya şifre hatalı" },
-        { status: 401 }
+          { error: "Email veya şifre hatalı" },
+          { status: 401 }
       );
     }
 
     // Hesap engellenmiş mi kontrol et
     if (user.blocked) {
       return NextResponse.json(
-        { error: "Hesabınız engellenmiş" },
-        { status: 403 }
+          { error: "Hesabınız engellenmiş" },
+          { status: 403 }
       );
     }
 
@@ -62,7 +64,7 @@ export async function POST(req: Request) {
           role: user.role,
         },
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("NextAuth signIn error:", error);
       // NextAuth hatası olsa bile manuel session oluşturabiliriz
       return NextResponse.json({
@@ -75,8 +77,11 @@ export async function POST(req: Request) {
         },
       });
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error("Login error:", error);
-    return NextResponse.json({ error: "Bir hata oluştu" }, { status: 500 });
+    return NextResponse.json(
+        { error: "Bir hata oluştu", details: error?.message },
+        { status: 500 }
+    );
   }
 }
