@@ -105,11 +105,13 @@ openssl rand -hex 16
 Vercel otomatik olarak Next.js projelerini algılar. Eğer özel ayar gerekiyorsa:
 
 **Build Command:**
+
 ```bash
 prisma generate && prisma migrate deploy && next build
 ```
 
 **Install Command:** (Zaten varsayılan)
+
 ```bash
 npm install
 ```
@@ -224,6 +226,7 @@ Deploy edilmeden önce şunları kontrol edin:
 
 **Çözüm:**
 `package.json`'a `postinstall` script ekleyin:
+
 ```json
 "scripts": {
   "postinstall": "prisma generate"
@@ -242,6 +245,7 @@ Vercel project settings → Environment Variables → `DATABASE_URL` ekleyin
 ### ❌ Hata: `Module not found: Can't resolve '@/lib/prisma'`
 
 **Çözüm:**
+
 ```bash
 npx prisma generate
 git add prisma/
@@ -254,6 +258,7 @@ git push
 ### ❌ Hata: `Authentication failed - 500 Internal Server Error`
 
 **Çözüm:**
+
 1. `NEXTAUTH_URL` ve `NEXTAUTH_SECRET` doğru mu kontrol edin
 2. Vercel Functions logs'a bakın
 3. Database connection çalışıyor mu kontrol edin
@@ -297,7 +302,7 @@ npx prisma migrate deploy
   "crons": [
     {
       "path": "/api/cron/check-renewals",
-      "schedule": "0 9 * * *"  // Her gün saat 09:00
+      "schedule": "0 9 * * *" // Her gün saat 09:00
     }
   ]
 }
@@ -337,4 +342,3 @@ Cron secret'ı environment variable olarak ekleyin.
 ## 🎉 Başarılı Deployment!
 
 Projeniz artık `https://your-project.vercel.app` adresinde çalışıyor! 🚀
-
